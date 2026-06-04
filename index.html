@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Orbito — Workspace Manager</title>
+    <meta name="description" content="Manage parts, projects, tools, and people. Built for robotics teams."/>
+    <link rel="stylesheet" href="style.css?v=6"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+  <!-- Auth Overlays -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <i class="fa-solid fa-robot fa-3x mb-4 text-blue"></i>
+      <h2>Welcome to Orbito</h2>
+      <p class="text-muted mb-4">Sign in to access your team workspace.</p>
+      <button id="googleSignInBtn" class="btn btn-primary" style="width:100%;justify-content:center"><i class="fa-brands fa-google"></i> Sign in with Google</button>
+    </div>
+  </div>
+  
+  <div id="pendingOverlay" class="auth-overlay" style="display:none">
+    <div class="auth-card">
+      <i class="fa-solid fa-hourglass-half fa-3x mb-4 text-amber"></i>
+      <h2>Pending Approval</h2>
+      <p class="text-muted mb-4">Your account is pending approval from a Mentor. Please check back later.</p>
+      <button onclick="AuthModule.signOut()" class="btn btn-secondary" style="width:100%;justify-content:center">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="app-container" style="display:none">
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-icon">O</div>
+                <span class="sidebar-brand-name">Orbito</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="sidebar-section-title">Overview</div>
+                <a class="nav-item active" data-view="dashboard" href="#dashboard">
+                    <i class="fa-solid fa-house"></i> Dashboard
+                </a>
+
+                <div class="sidebar-section-title">Manage</div>
+                <a class="nav-item" data-view="projects" href="#projects">
+                    <i class="fa-solid fa-folder-open"></i> Projects
+                </a>
+                <a class="nav-item" data-view="search" href="#search">
+                    <i class="fa-solid fa-magnifying-glass"></i> Global Search
+                </a>
+                <a class="nav-item" data-view="parts" href="#parts">
+                    <i class="fa-solid fa-screwdriver-wrench"></i> Parts Library
+                </a>
+                <a class="nav-item" data-view="sketches" href="#sketches">
+                    <i class="fa-solid fa-pen-nib"></i> Global Sketches
+                </a>
+                <a class="nav-item" data-view="bom" href="#bom">
+                    <i class="fa-solid fa-clipboard-list"></i> Bill of Materials
+                </a>
+                <a class="nav-item" data-view="spreadsheet" href="#spreadsheet">
+                    <i class="fa-solid fa-table-cells"></i> Data Spreadsheet
+                </a>
+                <a class="nav-item" data-view="vendors" href="#vendors">
+                    <i class="fa-solid fa-store"></i> Vendors
+                </a>
+                <a class="nav-item" data-view="tools" href="#tools">
+                    <i class="fa-solid fa-wrench"></i> Tools
+                </a>
+
+                <div class="sidebar-section-title">Team</div>
+                <a class="nav-item" data-view="people" href="#people">
+                    <i class="fa-solid fa-users"></i> People
+                </a>
+                <a class="nav-item" data-view="tasks" href="#tasks">
+                    <i class="fa-solid fa-list-check"></i> Tasks
+                </a>
+                <a class="nav-item" data-view="history" href="#history">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Activity
+                </a>
+
+                <div class="sidebar-section-title">Workspace</div>
+                <a class="nav-item" data-view="workspace" href="#workspace">
+                    <i class="fa-solid fa-map-location-dot"></i> Workspace Map
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a class="nav-item" data-view="settings" href="#settings">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="main-content">
+            <header class="topbar">
+                <div class="flex items-center gap-3">
+                    <button class="btn-icon" id="sidebarToggle" style="display:none;">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="topbar-title" id="topbarTitle">Dashboard</span>
+                </div>
+                <div class="topbar-actions" id="topbarActions"></div>
+            </header>
+            <main class="page-content" id="pageContent">
+                <!-- Dynamic content renders here -->
+            </main>
+        </div>
+    </div>
+  </div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- FAB -->
+<button class="fab" id="globalFab" title="Quick Add" style="display:none">
+  <i class="fa-solid fa-plus"></i>
+</button>
+
+<!-- Command Palette -->
+<div class="cmd-overlay" id="cmdOverlay">
+  <div class="cmd-palette">
+    <input type="text" class="cmd-input" id="cmdInput" placeholder="Search everywhere... (Press Esc to close)" autocomplete="off" />
+    <div class="cmd-results" id="cmdResults"></div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-panel" id="modalPanel">
+        <div class="modal-header">
+            <h2 id="modalTitle">Modal</h2>
+            <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-footer" id="modalFooter"></div>
+    </div>
+</div>
+
+<!-- Scripts (order matters: db first, then app shell, then modules) -->
+<script type="module" src="auth.js?v=6"></script>
+<script src="db.js?v=6"></script>
+<script src="modules/projects.js?v=6"></script>
+<script src="modules/parts.js?v=6"></script>
+<script src="modules/bom.js?v=6"></script>
+<script src="modules/vendors.js?v=6"></script>
+<script src="modules/tools.js?v=6"></script>
+<script src="modules/people.js?v=6"></script>
+<script src="modules/tasks.js?v=6"></script>
+<script src="modules/workspace.js?v=6"></script>
+<script src="modules/spreadsheet.js?v=6"></script>
+<script src="modules/sketches.js?v=6"></script>
+<script src="modules/search.js?v=6"></script>
+<script src="modules/annotate.js?v=6"></script>
+<script src="modules/history.js?v=6"></script>
+<script src="app.js?v=6"></script>
+</body>
+</html>

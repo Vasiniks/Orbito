@@ -1,0 +1,72 @@
+ORBITO SYSTEM FEATURES
+----------------------
+
+[x] = Built
+[ ] = Planned
+
+
+CORE SYSTEM & ARCHITECTURE
+[x] Works fully offline using the browser's IndexedDB.
+[x] Backup and restore data to/from a single JSON file.
+[x] PIN-based login with roles.
+[x] Mobile friendly responsive layout.
+[x] Hidden developer command: Cmd + Shift + Option + K spawns a cat image.
+[ ] Better mobile compatibility. Swipe to close sidebar menu.
+[ ] Sign out tab in settings.
+
+IDENTITY & PERMISSIONS
+[x] Role categories: Captain, Lead, Mentor, Member.
+[ ] Leads have near-mentor privileges except for very high privilege actions.
+[ ] Certain decisions require mentor approval before taking effect.
+[ ] History/notification feed of all changes made across the system.
+[ ] Approval workflow where mentors review and approve or reject pending changes.
+
+PROJECTS & SUB-PROJECTS
+[x] Create parent projects and nested sub-projects.
+[x] Calculates progress based on completed tasks.
+[x] Duplicate a project to reuse its hierarchy, BOM, and tasks.
+[x] Tabs for sub-projects, BOM, and tasks on the detail page.
+
+PARTS & INVENTORY
+[x] Sortable table showing photo, name, category, vendor, location, stock, needed, and cost.
+[x] Restock filter highlights parts where stock is below needed.
+[x] Quick adjust modal to receive or consume quantities (e.g. +5, -2).
+[x] Upload photos of parts to save them in database.
+[x] Checkboxes to delete multiple parts at once.
+[ ] Assign people to specific parts (ownership/responsibility).
+[ ] Part drawing tab. Attach CAD drawings or sketches to a part record.
+[ ] Onshape integration. Link or embed Onshape part drawings directly.
+
+BILL OF MATERIALS (BOM)
+[x] Group parts by project to track procurement.
+[x] Auto-calculates unit costs, needed parts, line totals, and project totals.
+[x] Statuses: Not Started, Ordered, In Stock, Installed.
+[x] Statistics showing total budget, total items, and installation progress.
+[x] Export project BOM to CSV file.
+
+TOOL CHECKOUT
+[x] Tool catalog with photos and locations.
+[x] Health badges: Good, Needs Maintenance, Broken.
+[x] Checkout system to track who has which tool.
+
+TEAM ROSTER & PEOPLE
+[x] Team directory with roles and contact info.
+[x] Profiles show assigned tasks and checked out tools.
+[x] Mentor approval screen for new user signups.
+[ ] Assign people to parts, not just tasks and tools.
+
+KANBAN TASKS
+[x] Kanban board with columns: To Do, In Progress, Done.
+[x] Cards show title, project, assignee, due date, and priority.
+[x] Priority levels: Low, Medium, High.
+[x] Filter task board by project or assignee.
+
+WORKSPACE MAP
+[x] Floorplan view of your shop zones.
+[x] Coordinate-positioned zones colored by type: Storage, Workspace, Machine, Other.
+[x] Click a zone to see all parts and tools stored there.
+[ ] Better actual map with uploaded photos of real locations.
+[ ] Photo upload and boundary drawing/labeling on images.
+[ ] Detailed down to the actual box/container a part is in.
+[ ] Walk-to-part navigation. Step by step guide to the exact container.
+[ ] Arrived button. Person clicks arrived/photo when they reach the location.
