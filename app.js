@@ -122,7 +122,7 @@ async function renderDashboard(container) {
     DB.getAll('projects'),
     DB.getAll('parts'),
     DB.getAll('tools'),
-    DB.getAll('people'),
+    DB.getAll('users'),
     DB.getAll('tasks'),
     DB.getAll('vendors'),
     DB.getAll('locations'),
@@ -269,6 +269,13 @@ async function renderSettings(container) {
           </label>
         </div>
       </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>Sample Data</h3></div>
+        <div class="card-body">
+          <p class="text-sm text-muted" style="margin-bottom:12px">Load a realistic sample database (Robot project, vendors, parts). This will <strong>replace</strong> all existing data.</p>
+          <button class="btn btn-secondary" id="loadSampleBtn"><i class="fa-solid fa-flask"></i> Load Sample Data</button>
+        </div>
+      </div>
       <div class="card">
         <div class="card-header"><h3>Danger Zone</h3></div>
         <div class="card-body">
@@ -312,10 +319,26 @@ async function renderSettings(container) {
     }
   });
 
+  document.getElementById('loadSampleBtn').addEventListener('click', async () => {
+    if (confirm('This will REPLACE all existing data with sample data. Continue?')) {
+      try {
+        toast('Loading sample data...', 'info');
+        const res = await fetch('sample_data.json');
+        const data = await res.json();
+        await DB.importAll(data);
+        toast('Sample data loaded!', 'success');
+        navigate('dashboard');
+      } catch (err) {
+        toast('Failed to load sample data: ' + err.message, 'error');
+      }
+    }
+  });
+
   document.getElementById('clearBtn').addEventListener('click', async () => {
     if (confirm('Are you sure you want to delete ALL data? This cannot be undone.')) {
-      for (const store of Object.keys(STORES)) {
-        await DB.clear(store);
+      const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'users', 'tasks'];
+      for (const store of stores) {
+        await DB.clearStore(store);
       }
       toast('All data cleared.', 'success');
       navigate('dashboard');

@@ -49,7 +49,12 @@ const DB = {
   },
 
   async clearStore(storeName) {
-    console.warn("clearStore called for", storeName, "- skipping for Firestore to prevent accidental data loss.");
+    const { db, f } = this.getFs();
+    const q = f.query(f.collection(db, storeName));
+    const snap = await f.getDocs(q);
+    const batch = f.writeBatch(db);
+    snap.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
   },
 
   async addPendingAction(actionData) {
@@ -73,6 +78,10 @@ const DB = {
   },
 
   async importAll(data) {
+    const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'users', 'tasks', 'settings'];
+    for (const store of stores) {
+      await this.clearStore(store);
+    }
     for (const store of Object.keys(data)) {
       if (Array.isArray(data[store])) {
         for (const item of data[store]) {
