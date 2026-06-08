@@ -61,6 +61,25 @@ const DB = {
     const docRef = f.doc(db, 'pending_actions', actionData.id);
     await f.setDoc(docRef, actionData);
     return actionData.id;
+  },
+
+  async exportAll() {
+    const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'people', 'tasks', 'settings'];
+    const data = {};
+    for (const store of stores) {
+      data[store] = await this.getAll(store);
+    }
+    return data;
+  },
+
+  async importAll(data) {
+    for (const store of Object.keys(data)) {
+      if (Array.isArray(data[store])) {
+        for (const item of data[store]) {
+          await this.put(store, item);
+        }
+      }
+    }
   }
 };
 

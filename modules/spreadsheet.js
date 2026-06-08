@@ -30,7 +30,7 @@ const SpreadsheetModule = {
       
       <div class="table-wrap" style="height:calc(100vh - 180px); overflow-y:auto; border-radius:0;">
         <table class="spreadsheet-table" style="font-size:12px; white-space:nowrap; width:max-content; min-width:100%;">
-          <thead style="position:sticky; top:0; background:var(--bg-2); color:var(--text-0); z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1), 0 1px 0 var(--border);">
+          <thead style="position:sticky; top:0; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1), 0 1px 0 var(--border);">
             <tr>
               <th style="padding:6px 12px;border-right:1px solid var(--border)">ID</th>
               <th style="padding:6px 12px;border-right:1px solid var(--border)">Part Name</th>
@@ -71,7 +71,7 @@ const SpreadsheetModule = {
 
       return `
         <tr class="ss-row" style="cursor:pointer" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${p.id}'))">
-          <td style="padding:6px 12px;border-right:1px solid var(--border);color:var(--text-3);font-family:monospace">${p.id.substring(0,6)}</td>
+          <td style="padding:6px 12px;border-right:1px solid var(--border);color:var(--text-1);font-family:monospace">${p.id.substring(0,6)}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border);font-weight:500">${escapeHTML(p.name)}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border)">${escapeHTML(p.category || '')}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border);background:${(p.inStock||0)<(p.needed||0)?'var(--red-dim)':'transparent'};color:${(p.inStock||0)<(p.needed||0)?'var(--red)':'inherit'}">${p.inStock || 0}</td>
