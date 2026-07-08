@@ -22,7 +22,17 @@ function parseEnvText(text) {
 
 async function loadFirebaseEnv() {
   const runtimeEnv = (typeof window !== "undefined" && window.__ORBITO_ENV__) ? window.__ORBITO_ENV__ : {};
-  const buildEnv = import.meta.env ?? {};
+
+  // import.meta.env is a Vite/bundler-only API — it throws on plain HTTP servers.
+  // Safely read it without crashing when served via python -m http.server.
+  let buildEnv = {};
+  try {
+    // eslint-disable-next-line no-undef
+    buildEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+  } catch (_) {
+    buildEnv = {};
+  }
+
   const env = { ...buildEnv, ...runtimeEnv };
 
   const requiredKeys = [
@@ -38,6 +48,21 @@ async function loadFirebaseEnv() {
     return env;
   }
 
+  // Check localStorage for saved config
+  try {
+    const storedConfig = localStorage.getItem('orbito_firebase_config');
+    if (storedConfig) {
+      const parsed = JSON.parse(storedConfig);
+      if (requiredKeys.every(key => parsed[key])) {
+        console.log('Using Firebase config from localStorage');
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load config from localStorage:', e);
+  }
+
+  // Try to load from .env file
   try {
     const response = await fetch('./.env', { cache: 'no-store' });
     if (response.ok) {
@@ -72,22 +97,27 @@ const hasFirebaseConfig = [
 ].every(Boolean);
 
 let app, auth, db;
-try {
-  if (!hasFirebaseConfig) {
-    throw new Error("Missing Firebase env values. Copy .env.example to .env and fill in the VITE_FIREBASE_* entries.");
-  }
+let firebaseAvailable = false;
 
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  
-  // Export to window for db.js and modules
-  window.fsdb = db;
-  window.FirebaseMethods = {
-    collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch
-  };
+try {
+  if (hasFirebaseConfig) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    
+    // Export to window for db.js and modules
+    window.fsdb = db;
+    window.FirebaseMethods = {
+      collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch
+    };
+    firebaseAvailable = true;
+    console.log("Firebase initialized successfully");
+  } else {
+    console.warn("Firebase configuration incomplete. Google Sign-in will be unavailable. Use offline mode.");
+  }
 } catch (e) {
-  console.error("Firebase init error (check your env configuration):", e);
+  console.error("Firebase init error:", e);
+  console.warn("Google Sign-in will be unavailable. Use offline mode.");
 }
 
 window.AuthModule = {
@@ -96,13 +126,37 @@ window.AuthModule = {
 
   init() {
     const googleBtn = document.getElementById('googleSignInBtn');
-    if (googleBtn) {
+    const mainOfflineBtn = document.getElementById('mainOfflineBtn');
+
+    // Disable Google Sign-in if Firebase is not available
+    if (!firebaseAvailable) {
+      if (googleBtn) {
+        googleBtn.disabled = true;
+        googleBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in Unavailable';
+        googleBtn.title = 'Firebase configuration missing. Use offline mode or configure Firebase.';
+      }
+      console.warn('Google Sign-in disabled: Firebase not configured');
+    } else if (googleBtn) {
       googleBtn.addEventListener('click', () => this.signIn());
     }
 
-    const mainOfflineBtn = document.getElementById('mainOfflineBtn');
     if (mainOfflineBtn) {
       mainOfflineBtn.addEventListener('click', () => this.enterOfflineMode());
+    }
+
+    // Add configure button if Firebase is not available
+    if (!firebaseAvailable) {
+      const authCard = document.querySelector('.auth-card');
+      if (authCard) {
+        const configBtn = document.createElement('button');
+        configBtn.className = 'btn btn-ghost';
+        configBtn.style.width = '100%';
+        configBtn.style.justifyContent = 'center';
+        configBtn.style.marginTop = '8px';
+        configBtn.innerHTML = '<i class="fa-solid fa-gear"></i> Configure Firebase';
+        configBtn.onclick = () => this.showConfigModal();
+        authCard.appendChild(configBtn);
+      }
     }
 
     if (!auth) {
@@ -122,6 +176,69 @@ window.AuthModule = {
         this.currentUser = null;
         this.userRole = null;
       }
+    });
+  },
+
+  showConfigModal() {
+    const modalBody = `
+      <p class="text-muted mb-4">Enter your Firebase configuration to enable Google Sign-in. This will be stored locally in your browser.</p>
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input type="text" class="form-input" id="fbApiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Auth Domain</label>
+        <input type="text" class="form-input" id="fbAuthDomain" placeholder="your-project.firebaseapp.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project ID</label>
+        <input type="text" class="form-input" id="fbProjectId" placeholder="your-project-id">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Storage Bucket</label>
+        <input type="text" class="form-input" id="fbStorageBucket" placeholder="your-project.appspot.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Messaging Sender ID</label>
+        <input type="text" class="form-input" id="fbSenderId" placeholder="123456789">
+      </div>
+      <div class="form-group">
+        <label class="form-label">App ID</label>
+        <input type="text" class="form-input" id="fbAppId" placeholder="1:123456789:web:abc123">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Measurement ID (optional)</label>
+        <input type="text" class="form-input" id="fbMeasurementId" placeholder="G-XXXXXXXXXX">
+      </div>
+    `;
+    const modalFooter = `
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveFbConfigBtn">Save & Reload</button>
+    `;
+    openModal('Configure Firebase', modalBody, modalFooter);
+
+    document.getElementById('saveFbConfigBtn').addEventListener('click', () => {
+      const config = {
+        VITE_FIREBASE_API_KEY: document.getElementById('fbApiKey').value,
+        VITE_FIREBASE_AUTH_DOMAIN: document.getElementById('fbAuthDomain').value,
+        VITE_FIREBASE_PROJECT_ID: document.getElementById('fbProjectId').value,
+        VITE_FIREBASE_STORAGE_BUCKET: document.getElementById('fbStorageBucket').value,
+        VITE_FIREBASE_MESSAGING_SENDER_ID: document.getElementById('fbSenderId').value,
+        VITE_FIREBASE_APP_ID: document.getElementById('fbAppId').value,
+        VITE_FIREBASE_MEASUREMENT_ID: document.getElementById('fbMeasurementId').value
+      };
+      
+      const required = ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID', 'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_MESSAGING_SENDER_ID', 'VITE_FIREBASE_APP_ID'];
+      const missing = required.filter(key => !config[key]);
+      
+      if (missing.length > 0) {
+        alert('Please fill in all required fields: ' + missing.join(', '));
+        return;
+      }
+      
+      localStorage.setItem('orbito_firebase_config', JSON.stringify(config));
+      closeModal();
+      location.reload();
     });
   },
 
@@ -157,6 +274,8 @@ window.AuthModule = {
     
     const currentUserNameEl = document.getElementById('currentUserName');
     if (currentUserNameEl) currentUserNameEl.textContent = 'Offline Mentor';
+    const sidebarUser = document.getElementById('sidebarUser');
+    if (sidebarUser) sidebarUser.style.display = '';
     
     // Now initialize the app
     App.init();
@@ -233,6 +352,8 @@ window.AuthModule = {
           // Show user info in sidebar
           const currentUserNameEl = document.getElementById('currentUserName');
           if (currentUserNameEl) currentUserNameEl.textContent = userData.name;
+          const sidebarUser = document.getElementById('sidebarUser');
+          if (sidebarUser) sidebarUser.style.display = '';
           
           // Now initialize the app
           App.init();
@@ -248,8 +369,13 @@ window.AuthModule = {
   }
 };
 
-// Start auth flow when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Start auth flow — DOM is ready by the time this module finishes executing.
+// IMPORTANT: top-level await (used above for loadFirebaseEnv) causes the browser to fire
+// DOMContentLoaded BEFORE this module completes, so the event will already have fired by
+// the time we reach this line. We must check readyState and call init() directly if so.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => window.AuthModule.init());
+} else {
   window.AuthModule.init();
-});
+}
 
