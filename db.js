@@ -1,26 +1,46 @@
-// db.js (Cloud Firestore Adapter)
+// db.js (Cloud Firestore Adapter with a live in-memory cache)
+// The first read of a store attaches a realtime onSnapshot listener; every
+// read after that is served instantly from memory and stays fresh
+// automatically (including your own writes, via latency compensation).
 const DB = {
+  _cache: {},
+  _ready: {},
+  _unsubs: {},
+
   getFs() {
     if (!window.fsdb || !window.FirebaseMethods) throw new Error("Firebase not initialized");
     return { db: window.fsdb, f: window.FirebaseMethods };
   },
 
-  async getAll(storeName) {
+  _watch(storeName) {
+    if (this._ready[storeName]) return this._ready[storeName];
     const { db, f } = this.getFs();
-    const q = f.query(f.collection(db, storeName));
-    const snap = await f.getDocs(q);
-    const results = [];
-    snap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
-    return results;
+    this._ready[storeName] = new Promise((resolve, reject) => {
+      let settled = false;
+      this._unsubs[storeName] = f.onSnapshot(f.query(f.collection(db, storeName)), (snap) => {
+        const results = [];
+        snap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+        this._cache[storeName] = results;
+        if (!settled) { settled = true; resolve(); }
+      }, (err) => {
+        console.error(`Snapshot error for ${storeName}:`, err);
+        if (this._unsubs[storeName]) { this._unsubs[storeName](); delete this._unsubs[storeName]; }
+        delete this._ready[storeName];
+        if (!settled) { settled = true; reject(err); }
+      });
+    });
+    return this._ready[storeName];
+  },
+
+  async getAll(storeName) {
+    await this._watch(storeName);
+    // Shallow copy so callers can sort/filter without disturbing the cache
+    return [...(this._cache[storeName] || [])];
   },
 
   async getAllByIndex(storeName, indexName, value) {
-    const { db, f } = this.getFs();
-    const q = f.query(f.collection(db, storeName), f.where(indexName, '==', value));
-    const snap = await f.getDocs(q);
-    const results = [];
-    snap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
-    return results;
+    const all = await this.getAll(storeName);
+    return all.filter(item => item[indexName] === value);
   },
 
   async add(storeName, data) {

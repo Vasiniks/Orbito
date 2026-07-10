@@ -1,5 +1,5 @@
 /* Orbito — Design System (flat / minimal) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Fonts are loaded via <link> in index.html (parallel, non-blocking) */
 
 :root {
   --bg-0: #09090b;

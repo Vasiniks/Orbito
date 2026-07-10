@@ -56,7 +56,7 @@ const WorkspaceModule = {
     document.getElementById('floorplanInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const data = await readFileAsDataURL(file);
+      const data = await readFileAsDataURL(file, 1800); // floorplans need more detail
       await DB.put('settings', { id: 'global_floorplan', value: data });
       toast('Floorplan uploaded!', 'success');
       this.render(this.container);

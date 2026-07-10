@@ -76,11 +76,43 @@ function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
 }
 
-// ── Photo Upload Helper ──
-function readFileAsDataURL(file) {
+// ── Photo Upload Helpers ──
+// Photos are stored as data-URLs inside Firestore documents, so size matters a
+// lot: every page load downloads them. Downscale + re-encode before saving.
+function compressDataUrl(dataUrl, maxDim = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      // Already small enough — keep as-is
+      if (scale >= 1 && dataUrl.length < 250000) return resolve(dataUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; // JPEG has no alpha; avoid black backgrounds
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const out = canvas.toDataURL('image/jpeg', quality);
+      resolve(out.length < dataUrl.length ? out : dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function readFileAsDataURL(file, maxDim = 1200, quality = 0.8) {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
+    reader.onload = async (e) => {
+      const raw = e.target.result;
+      if (file.type && file.type.startsWith('image/')) {
+        resolve(await compressDataUrl(raw, maxDim, quality));
+      } else {
+        resolve(raw);
+      }
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -391,6 +423,18 @@ async function renderSettings(container) {
         </div>
       </div>
       <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><h3>Performance</h3></div>
+        <div class="card-body">
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-weight:500">Compress stored photos</div>
+              <div class="text-sm text-muted">Shrinks existing photos, drawings, and zone images so pages load faster. New uploads are compressed automatically.</div>
+            </div>
+            <button class="btn btn-secondary" id="optimizePhotosBtn"><i class="fa-solid fa-bolt"></i> Compress</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Backup &amp; Data</h3></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
           <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
@@ -455,6 +499,70 @@ async function renderSettings(container) {
     } catch (e) {
       toast('Failed to save thresholds: ' + e.message, 'error');
     }
+  });
+
+  document.getElementById('optimizePhotosBtn').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!confirm('Compress all stored photos and drawings? This re-encodes large images at a smaller size (originals are replaced).')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Compressing…';
+    try {
+      let updated = 0, savedChars = 0;
+      const jobs = [
+        { store: 'parts', fields: ['photo'], listField: 'drawings' },
+        { store: 'tools', fields: ['photo'] },
+        { store: 'locations', fields: ['photo'] },
+      ];
+      for (const job of jobs) {
+        const docs = await DB.getAll(job.store);
+        for (const d of docs) {
+          let before = 0, after = 0, changed = false;
+          for (const field of job.fields) {
+            if (d[field] && d[field].startsWith('data:image')) {
+              before += d[field].length;
+              const c = await compressDataUrl(d[field]);
+              after += c.length;
+              if (c !== d[field]) { d[field] = c; changed = true; }
+            }
+          }
+          if (job.listField && Array.isArray(d[job.listField])) {
+            for (let i = 0; i < d[job.listField].length; i++) {
+              const img = d[job.listField][i];
+              if (img && img.startsWith('data:image')) {
+                before += img.length;
+                const c = await compressDataUrl(img);
+                after += c.length;
+                if (c !== img) { d[job.listField][i] = c; changed = true; }
+              }
+            }
+          }
+          if (changed) {
+            await DB.put(job.store, d);
+            updated++;
+            savedChars += Math.max(0, before - after);
+          }
+        }
+      }
+      // Also the workspace floorplan, stored in settings
+      const settings = await DB.getAll('settings');
+      const fp = settings.find(s => s.id === 'global_floorplan');
+      if (fp?.value?.startsWith?.('data:image')) {
+        const c = await compressDataUrl(fp.value, 1800);
+        if (c !== fp.value) {
+          savedChars += fp.value.length - c.length;
+          fp.value = c;
+          await DB.put('settings', fp);
+          updated++;
+        }
+      }
+      const savedMB = ((savedChars * 0.75) / (1024 * 1024)).toFixed(1);
+      toast(updated ? `Compressed ${updated} items — saved ~${savedMB} MB` : 'Everything is already compact!', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('Compression failed: ' + err.message, 'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Compress';
   });
 
   document.getElementById('exportBtn').addEventListener('click', async () => {
