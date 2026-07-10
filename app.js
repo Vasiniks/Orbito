@@ -161,16 +161,16 @@ function debounce(func, wait) {
 // ── Contextual Help ──
 const VIEW_HELP = {
   dashboard: 'Your team at a glance: project counts, stock totals, recent tasks, and the roster. Numbers update live as the team works.',
-  projects: 'Projects hold sub-projects, a BOM, and tasks. Click a card to open it, use Duplicate to reuse a season\'s structure as a template.',
+  projects: 'Projects hold subsystems (like Elevator or Arm), a BOM, and tasks. Each subsystem gets its own BOM and spreadsheet; the project rolls them up. Use Duplicate to reuse a season\'s structure as a template.',
   parts: 'Your inventory. Click a part name for details, drawings, and a sketch pad. Click a stock chip to quick-edit quantities, or use the route icon to get walked to the part\'s location.',
-  bom: 'Pick a project, then track every item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it one step. Filter by COTS vs In-house, and export to CSV for ordering.',
+  bom: 'Pick a project or subsystem, then track every item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it one step. Selecting a project shows all its subsystems rolled up. Filter by COTS vs In-house, and export to CSV for ordering.',
   vendors: 'Keep vendor contact info and links in one place. Parts reference vendors for ordering.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
   people: 'Team roster with roles. Mentors approve new signups here.',
   tasks: 'Kanban board: drag-free columns for To Do, In Progress, and Done. Filter by project or assignee.',
   history: 'A feed of every change: who did what, and when.',
   workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
-  spreadsheet: 'A dense, spreadsheet-style view of all parts for fast scanning and bulk review.',
+  spreadsheet: 'A dense, editable view of your data. Every chip is clickable — vendor, location, stock, material, machine, status — so you can fix values without leaving the sheet. Use the scope picker to switch between the master sheet and a per-subsystem sheet.',
   sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
   search: 'Search across parts, projects, people, and tasks. Tip: press Ctrl/Cmd+K from anywhere.',
   settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
@@ -255,7 +255,7 @@ async function renderDashboard(container) {
         <div class="stat-icon" style="background:var(--accent-dim);color:var(--accent)"><i class="fa-solid fa-folder-open"></i></div>
         <div class="stat-label">Projects</div>
         <div class="stat-value">${topProjects.length}</div>
-        <div class="stat-sub">${projects.length - topProjects.length} sub-projects</div>
+        <div class="stat-sub">${projects.length - topProjects.length} subsystems</div>
       </div>
       <div class="card stat-card">
         <div class="stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-screwdriver-wrench"></i></div>
@@ -330,29 +330,31 @@ async function renderSettings(container) {
   const user = AuthModule.currentUser;
   
   container.innerHTML = `
-    <div style="max-width:600px">
-      <div class="card" style="margin-bottom:20px">
+    <div style="max-width:640px;margin:0 auto">
+      <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Account</h3></div>
         <div class="card-body">
-          <div class="flex items-center gap-3" style="margin-bottom:16px">
-            <div class="avatar" style="width:40px;height:40px;font-size:16px">${initials(user?.name)}</div>
-            <div>
-              <div style="font-weight:500">${escapeHTML(user?.name)}</div>
-              <div class="text-sm text-muted">${escapeHTML(user?.email)} &bull; ${escapeHTML(user?.role)}</div>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div class="flex items-center gap-3">
+              <div class="avatar" style="width:40px;height:40px;font-size:16px">${initials(user?.name)}</div>
+              <div>
+                <div style="font-weight:500">${escapeHTML(user?.name)}</div>
+                <div class="text-sm text-muted">${escapeHTML(user?.email)} &bull; ${escapeHTML(user?.role)}</div>
+              </div>
             </div>
+            <button class="btn btn-secondary" onclick="AuthModule.signOut()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</button>
           </div>
-          <button class="btn btn-secondary" onclick="AuthModule.signOut()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</button>
         </div>
       </div>
-      <div class="card" style="margin-bottom:20px">
+      <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Appearance</h3></div>
         <div class="card-body">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
             <div>
-              <div style="font-weight:500">Theme Preference</div>
-              <div class="text-sm text-muted">Switch between Light and Dark mode.</div>
+              <div style="font-weight:500">Theme</div>
+              <div class="text-sm text-muted">Pick the look that suits your shop.</div>
             </div>
-            <select class="form-select" id="themeSelect" style="width:120px">
+            <select class="form-select" id="themeSelect" style="width:160px" aria-label="Theme">
               <option value="dark">Dark</option>
               <option value="light">Light</option>
               <option value="dracula">Dracula</option>
@@ -365,56 +367,68 @@ async function renderSettings(container) {
           </div>
         </div>
       </div>
-      <div class="card" style="margin-bottom:20px">
+      <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Stock Thresholds</h3></div>
         <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:12px">Customize percentage thresholds for inventory level colors.</p>
+          <p class="text-sm text-muted" style="margin-bottom:14px">Percentage of "needed" that counts as full, medium, or low. These drive the stock chip and row colors everywhere.</p>
           <div class="grid-3" style="gap:12px; margin-bottom:16px">
             <div>
-              <label class="form-label">Full (>= %)</label>
+              <label class="form-label" for="thresholdHigh">Full (&ge; %)</label>
               <input type="number" class="form-input" id="thresholdHigh" value="${window.__stockThresholds?.high ?? 80}" min="0" max="100">
             </div>
             <div>
-              <label class="form-label">Medium (>= %)</label>
+              <label class="form-label" for="thresholdMedium">Medium (&ge; %)</label>
               <input type="number" class="form-input" id="thresholdMedium" value="${window.__stockThresholds?.medium ?? 50}" min="0" max="100">
             </div>
             <div>
-              <label class="form-label">Low (>= %)</label>
+              <label class="form-label" for="thresholdLow">Low (&ge; %)</label>
               <input type="number" class="form-input" id="thresholdLow" value="${window.__stockThresholds?.low ?? 10}" min="0" max="100">
             </div>
           </div>
-          <button class="btn btn-primary" id="saveThresholdsBtn"><i class="fa-solid fa-floppy-disk"></i> Save Thresholds</button>
+          <div class="text-right">
+            <button class="btn btn-primary" id="saveThresholdsBtn"><i class="fa-solid fa-floppy-disk"></i> Save Thresholds</button>
+          </div>
         </div>
       </div>
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header"><h3>Export Data</h3></div>
-        <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:12px">Download all your Orbito data as a JSON file. You can use this to back up or transfer data.</p>
-          <button class="btn btn-primary" id="exportBtn"><i class="fa-solid fa-download"></i> Export JSON</button>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header"><h3>Import Data</h3></div>
-        <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:12px">Import data from a previously exported JSON file. This will <strong>replace</strong> all existing data.</p>
-          <label class="btn btn-secondary" style="cursor:pointer">
-            <i class="fa-solid fa-upload"></i> Choose File
-            <input type="file" accept=".json" id="importFile" style="display:none"/>
-          </label>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header"><h3>Sample Data</h3></div>
-        <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:12px">Load a realistic sample database (Robot project, vendors, parts). This will <strong>replace</strong> all existing data.</p>
-          <button class="btn btn-secondary" id="loadSampleBtn"><i class="fa-solid fa-flask"></i> Load Sample Data</button>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><h3>Backup &amp; Data</h3></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-weight:500">Export data</div>
+              <div class="text-sm text-muted">Download everything as a JSON backup.</div>
+            </div>
+            <button class="btn btn-secondary" id="exportBtn"><i class="fa-solid fa-download"></i> Export JSON</button>
+          </div>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500">Import data</div>
+              <div class="text-sm text-muted"><strong>Replaces</strong> all existing data with a backup file.</div>
+            </div>
+            <label class="btn btn-secondary" style="cursor:pointer">
+              <i class="fa-solid fa-upload"></i> Choose File
+              <input type="file" accept=".json" id="importFile" style="display:none"/>
+            </label>
+          </div>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500">Sample data</div>
+              <div class="text-sm text-muted"><strong>Replaces</strong> everything with a realistic demo database.</div>
+            </div>
+            <button class="btn btn-secondary" id="loadSampleBtn"><i class="fa-solid fa-flask"></i> Load Sample</button>
+          </div>
         </div>
       </div>
       <div class="card">
         <div class="card-header"><h3>Danger Zone</h3></div>
         <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:12px">Permanently delete all data from Orbito. This cannot be undone.</p>
-          <button class="btn btn-danger" id="clearBtn"><i class="fa-solid fa-trash"></i> Clear All Data</button>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-weight:500">Clear all data</div>
+              <div class="text-sm text-muted">Permanently deletes everything. Cannot be undone.</div>
+            </div>
+            <button class="btn btn-danger" id="clearBtn"><i class="fa-solid fa-trash"></i> Clear All Data</button>
+          </div>
         </div>
       </div>
     </div>

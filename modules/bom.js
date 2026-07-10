@@ -13,6 +13,7 @@ const BOM_STATUS_MAP = {
 
 const BomModule = {
   typeFilter: 'all', // all | cots | inhouse
+  pendingProject: null, // set by other views before navigate('bom')
 
   async render(container) {
     this.container = container;
@@ -26,29 +27,60 @@ const BomModule = {
     this.boms = await DB.getAll('bom_items');
   },
 
+  // Family = a project plus its subsystems (one level deep)
+  familyIds(projectId) {
+    return [projectId, ...this.projects.filter(p => p.parentId === projectId).map(p => p.id)];
+  },
+
+  currentProjectId() {
+    return document.getElementById('bomProjectSelect')?.value || null;
+  },
+
+  projectOptionsHTML(selectedId) {
+    const tops = this.projects.filter(p => !p.parentId);
+    let html = '';
+    tops.forEach(p => {
+      const subs = this.projects.filter(s => s.parentId === p.id);
+      if (subs.length) {
+        html += `<optgroup label="${escapeHTML(p.name)}">`;
+        html += `<option value="${p.id}" ${selectedId === p.id ? 'selected' : ''}>${escapeHTML(p.name)} — all systems</option>`;
+        subs.forEach(s => {
+          html += `<option value="${s.id}" ${selectedId === s.id ? 'selected' : ''}>&nbsp;&nbsp;↳ ${escapeHTML(s.name)}</option>`;
+        });
+        html += `</optgroup>`;
+      } else {
+        html += `<option value="${p.id}" ${selectedId === p.id ? 'selected' : ''}>${escapeHTML(p.name)}</option>`;
+      }
+    });
+    return html;
+  },
+
   renderView() {
-    const projOptions = this.projects.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
+    const preselect = this.pendingProject && this.projects.find(p => p.id === this.pendingProject) ? this.pendingProject : null;
+    this.pendingProject = null;
 
     this.container.innerHTML = `
       <div class="toolbar">
         <div class="toolbar-left">
-          <select class="form-select" id="bomProjectSelect" style="width:250px">
+          <select class="form-select" id="bomProjectSelect" style="width:250px" aria-label="Select project or subsystem">
             <option value="">-- Select a Project --</option>
-            ${projOptions}
+            ${this.projectOptionsHTML(preselect)}
           </select>
         </div>
         <div class="toolbar-right" id="bomActions" style="display:none">
+          <button class="btn btn-secondary" id="sheetBomBtn"><i class="fa-solid fa-table-cells"></i> Spreadsheet</button>
           <button class="btn btn-secondary" id="exportBomBtn"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
           <button class="btn btn-secondary" id="importBomBtn"><i class="fa-solid fa-file-import"></i> Add All from Project</button>
           <button class="btn btn-primary" id="addBomItemBtn"><i class="fa-solid fa-plus"></i> Add Item</button>
         </div>
       </div>
       <div id="bomContent">
-        <div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><h3>Select a project</h3><p>Choose a project from the dropdown to view its BOM.</p></div>
+        <div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><h3>Select a project</h3><p>Choose a project or subsystem from the dropdown to view its BOM.</p></div>
       </div>
     `;
 
     document.getElementById('bomProjectSelect').addEventListener('change', (e) => this.renderBomForProject(e.target.value));
+    if (preselect) this.renderBomForProject(preselect);
   },
 
   renderBomForProject(projectId) {
@@ -62,15 +94,18 @@ const BomModule = {
     document.getElementById('addBomItemBtn').onclick = () => this.showAddModal(projectId);
     document.getElementById('exportBomBtn').onclick = () => this.exportCSV(projectId);
     document.getElementById('importBomBtn').onclick = () => this.showImportAllFromProjectModal(projectId);
+    document.getElementById('sheetBomBtn').onclick = () => { SpreadsheetModule.pendingScope = projectId; navigate('spreadsheet'); };
 
-    const allItems = this.boms.filter(b => b.projectId === projectId);
+    const fam = this.familyIds(projectId);
+    const isParent = fam.length > 1;
+    const allItems = this.boms.filter(b => fam.includes(b.projectId));
 
     if (allItems.length === 0) {
       document.getElementById('bomContent').innerHTML = `
         <div class="empty-state">
           <i class="fa-solid fa-clipboard-list"></i>
           <h3>No BOM items yet</h3>
-          <p>Add parts this project needs, then track each one from ordering to installation.</p>
+          <p>Add parts this ${isParent ? 'project or its subsystems need' : 'system needs'}, then track each one from ordering to installation.</p>
           <button class="btn btn-primary" onclick="BomModule.showAddModal('${projectId}')"><i class="fa-solid fa-plus"></i> Add First Item</button>
         </div>`;
       return;
@@ -103,10 +138,13 @@ const BomModule = {
       const critical = short && inStock === 0;
       const nameCls = critical ? 'part-name-low' : short ? 'part-name-warn' : '';
       const rowCls = critical ? 'row-stock-low' : short ? 'row-stock-warn' : '';
+      const subProj = this.projects.find(p => p.id === b.projectId);
+      const subCell = isParent ? `<td data-label="Subsystem"><span class="chip"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i>${b.projectId === projectId ? 'Main' : escapeHTML(subProj?.name || '?')}</span></td>` : '';
 
       return `
         <tr class="${rowCls}">
           <td data-label="Part"><span class="${nameCls}">${escapeHTML(part ? part.name : 'Unknown Part')}</span></td>
+          ${subCell}
           <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
           <td data-label="Material">${getMaterialChip(b.material)}</td>
           <td data-label="Process">${getProcessChip(b.process)}</td>
@@ -153,6 +191,7 @@ const BomModule = {
           <thead>
             <tr>
               <th>Part</th>
+              ${isParent ? '<th>Subsystem</th>' : ''}
               <th>Type</th>
               <th>Material</th>
               <th>Process</th>
@@ -188,7 +227,7 @@ const BomModule = {
       HistoryModule.log('update', 'bom_item', id, part ? part.name : 'Unknown Part', `Status → ${BOM_STATUS_MAP[item.status].label}`);
       toast(`${part ? part.name : 'Item'}: ${BOM_STATUS_MAP[item.status].label}`, 'success');
       await this.loadData();
-      this.renderBomForProject(item.projectId);
+      this.renderBomForProject(this.currentProjectId() || item.projectId);
     } catch (err) {
       toast('Error updating status', 'error');
     }
@@ -196,12 +235,24 @@ const BomModule = {
 
   async showAddModal(projectId) {
     const partOptions = this.parts.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
-    
+    const fam = this.familyIds(projectId);
+    const subsystemGroup = fam.length > 1 ? `
+      <div class="form-group">
+        <label class="form-label">Subsystem</label>
+        <select class="form-select" id="bomSubsystem">
+          ${fam.map(id => {
+            const pr = this.projects.find(p => p.id === id);
+            return `<option value="${id}">${escapeHTML(pr?.name || '?')}${id === projectId ? ' (main)' : ''}</option>`;
+          }).join('')}
+        </select>
+      </div>` : '';
+
     const body = `
       <div class="form-group">
         <label class="form-label">Part</label>
         <select class="form-select" id="bomPartSelect">${partOptions}</select>
       </div>
+      ${subsystemGroup}
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Quantity Needed</label>
@@ -240,11 +291,26 @@ const BomModule = {
     if (!item) return;
     const part = this.parts.find(p => p.id === item.partId);
 
+    const proj = this.projects.find(p => p.id === item.projectId);
+    const rootId = proj?.parentId || item.projectId;
+    const fam = this.familyIds(rootId);
+    const subsystemGroup = fam.length > 1 ? `
+      <div class="form-group">
+        <label class="form-label">Subsystem</label>
+        <select class="form-select" id="editBomProject">
+          ${fam.map(fid => {
+            const pr = this.projects.find(p => p.id === fid);
+            return `<option value="${fid}" ${fid === item.projectId ? 'selected' : ''}>${escapeHTML(pr?.name || '?')}${fid === rootId ? ' (main)' : ''}</option>`;
+          }).join('')}
+        </select>
+      </div>` : '';
+
     const body = `
       <div class="form-group">
         <label class="form-label">Part</label>
         <input type="text" class="form-input" value="${escapeHTML(part ? part.name : 'Unknown')}" disabled>
       </div>
+      ${subsystemGroup}
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Quantity Needed</label>
@@ -291,6 +357,7 @@ const BomModule = {
     if (btn) btn.disabled = true;
     const partId = document.getElementById('bomPartSelect').value;
     const qtyNeeded = parseInt(document.getElementById('bomQty').value) || 1;
+    const targetProjectId = document.getElementById('bomSubsystem')?.value || projectId;
     if (!partId) {
       if (btn) btn.disabled = false;
       return toast('Please select a part', 'error');
@@ -298,7 +365,7 @@ const BomModule = {
 
     try {
       const newId = await DB.add('bom_items', {
-        projectId, partId, qtyNeeded, status: 'not_started',
+        projectId: targetProjectId, partId, qtyNeeded, status: 'not_started',
         type: document.getElementById('bomType').value,
         material: document.getElementById('bomMaterial').value.trim(),
         process: document.getElementById('bomProcess').value.trim()
@@ -324,6 +391,8 @@ const BomModule = {
     item.type = document.getElementById('editBomType').value;
     item.material = document.getElementById('editBomMaterial').value.trim();
     item.process = document.getElementById('editBomProcess').value.trim();
+    const subSel = document.getElementById('editBomProject');
+    if (subSel) item.projectId = subSel.value;
 
     try {
       await DB.put('bom_items', item);
@@ -332,7 +401,7 @@ const BomModule = {
       toast('Item updated', 'success');
       closeModal();
       await this.loadData();
-      this.renderBomForProject(item.projectId);
+      this.renderBomForProject(this.currentProjectId() || item.projectId);
     } catch (err) {
       if (btn) btn.disabled = false;
       toast('Error updating item', 'error');
@@ -348,19 +417,21 @@ const BomModule = {
     HistoryModule.log('delete', 'bom_item', id, part ? part.name : 'Unknown Part');
     toast('Item removed', 'success');
     await this.loadData();
-    this.renderBomForProject(item.projectId);
+    this.renderBomForProject(this.currentProjectId() || item.projectId);
   },
 
   exportCSV(projectId) {
-    const items = this.boms.filter(b => b.projectId === projectId);
+    const fam = this.familyIds(projectId);
+    const items = this.boms.filter(b => fam.includes(b.projectId));
     const p = this.projects.find(x => x.id === projectId);
-    
-    let csv = 'Part Name,Type,Material,Process,Qty Needed,In Stock,Status,Unit Cost,Line Total\n';
+
+    let csv = 'Part Name,Subsystem,Type,Material,Machine/Process,Qty Needed,In Stock,Status,Unit Cost,Line Total\n';
     const esc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
     items.forEach(b => {
       const part = this.parts.find(pt => pt.id === b.partId);
       const cost = part ? (part.unitCost || 0) : 0;
-      csv += `${esc(part ? part.name : 'Unknown')},${b.type === 'inhouse' ? 'In-house' : 'COTS'},${esc(b.material)},${esc(b.process)},${b.qtyNeeded},${part ? part.inStock||0 : 0},${b.status},${cost},${cost * b.qtyNeeded}\n`;
+      const sub = b.projectId === projectId ? 'Main' : (this.projects.find(x => x.id === b.projectId)?.name || '');
+      csv += `${esc(part ? part.name : 'Unknown')},${esc(sub)},${b.type === 'inhouse' ? 'In-house' : 'COTS'},${esc(b.material)},${esc(b.process)},${b.qtyNeeded},${part ? part.inStock||0 : 0},${b.status},${cost},${cost * b.qtyNeeded}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });

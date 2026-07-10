@@ -720,6 +720,48 @@ tr.row-stock-low td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .chip-material i { color: var(--cyan); }
 .chip-vendor i   { color: var(--blue); }
 
+/* ══════════ Spreadsheet: editable cell chips ══════════ */
+.spreadsheet-table th, .spreadsheet-table td {
+  padding: 6px 12px;
+  border-right: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.spreadsheet-table th:last-child, .spreadsheet-table td:last-child { border-right: none; }
+.ss-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 220px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 11.5px; font-weight: 500;
+  font-family: inherit;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ss-chip i { font-size: 10px; color: var(--text-3); flex-shrink: 0; }
+.ss-chip:hover { border-color: var(--accent); color: var(--text-0); }
+.ss-chip:hover i { color: var(--accent); }
+.ss-chip-empty {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-3);
+  min-width: 30px;
+  justify-content: center;
+}
+.ss-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ss-name {
+  background: none; border: none; padding: 0;
+  font: inherit; font-weight: 500;
+  color: var(--text-0);
+  cursor: pointer;
+  text-align: left;
+}
+.ss-name:hover { color: var(--accent); text-decoration: underline; }
+.ss-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ══════════ Filter chips (BOM: All / COTS / In-house) ══════════ */
 .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-chip {

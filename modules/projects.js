@@ -61,7 +61,7 @@ const ProjectsModule = {
             <p class="text-sm text-muted mb-4 truncate">${escapeHTML(p.description || 'No description')}</p>
             <div class="flex items-center justify-between text-xs text-muted mb-2">
               <span><i class="fa-regular fa-calendar"></i> ${formatDate(p.deadline)}</span>
-              <span><i class="fa-solid fa-folder-tree"></i> ${subCount} sub-projects</span>
+              <span><i class="fa-solid fa-diagram-project"></i> ${subCount} subsystem${subCount === 1 ? '' : 's'}</span>
             </div>
             <div class="progress-bar mt-3">
               <div class="progress-fill" style="width:${progress}%"></div>
@@ -102,9 +102,10 @@ const ProjectsModule = {
         <div class="form-group">
           <label class="form-label">Parent Project (Optional)</label>
           <select class="form-select" id="projParent">
-            <option value="">None (Top-level)</option>
+            <option value="">None (Top-level project)</option>
             ${parentOptions}
           </select>
+          <div class="form-hint">Pick a parent to make this a subsystem (e.g. Elevator or Arm inside Robot). Subsystems get their own BOM and spreadsheet.</div>
         </div>
       </form>
     `;
@@ -154,7 +155,9 @@ const ProjectsModule = {
 
     const p = this.currentProject;
     const subs = this.projects.filter(sub => sub.parentId === p.id);
-    const boms = await DB.getAllByIndex('bom_items', 'projectId', p.id);
+    const allBoms = await DB.getAll('bom_items');
+    const famIds = [p.id, ...subs.map(s => s.id)];
+    const boms = allBoms.filter(b => famIds.includes(b.projectId));
     const parts = await DB.getAll('parts');
     const projTasks = this.tasks.filter(t => t.projectId === p.id);
 
@@ -174,7 +177,7 @@ const ProjectsModule = {
       </div>
 
       <div class="tabs">
-        <button class="tab active" onclick="ProjectsModule.switchTab('subs', this)">Sub-projects (${subs.length})</button>
+        <button class="tab active" onclick="ProjectsModule.switchTab('subs', this)">Subsystems (${subs.length})</button>
         <button class="tab" onclick="ProjectsModule.switchTab('bom', this)">BOM (${boms.length})</button>
         <button class="tab" onclick="ProjectsModule.switchTab('tasks', this)">Tasks (${projTasks.length})</button>
       </div>
@@ -182,7 +185,7 @@ const ProjectsModule = {
       <div id="tabContent"></div>
     `;
 
-    this.tabData = { subs, boms, parts, projTasks };
+    this.tabData = { subs, boms, parts, projTasks, allBoms };
     this.switchTab('subs', document.querySelector('.tab.active'));
   },
 
@@ -193,18 +196,30 @@ const ProjectsModule = {
     const content = document.getElementById('tabContent');
     if (tab === 'subs') {
       content.innerHTML = `
-        <div class="mb-4 text-right">
-          <button class="btn btn-secondary" onclick="ProjectsModule.showAddModal('${this.currentProject.id}')"><i class="fa-solid fa-plus"></i> Add Sub-project</button>
+        <div class="mb-4 flex items-center justify-between" style="flex-wrap:wrap;gap:8px">
+          <p class="text-sm text-muted">Each subsystem gets its own BOM and spreadsheet; the project rolls them all up.</p>
+          <button class="btn btn-secondary" onclick="ProjectsModule.showAddModal('${this.currentProject.id}')"><i class="fa-solid fa-plus"></i> Add Subsystem</button>
         </div>
-        ${this.tabData.subs.length === 0 ? '<div class="empty-state"><p>No sub-projects</p></div>' : `
+        ${this.tabData.subs.length === 0 ? '<div class="empty-state"><i class="fa-solid fa-diagram-project"></i><h3>No subsystems yet</h3><p>Break this project into systems like Elevator, Arm, or Drivetrain — each gets its own BOM and spreadsheet.</p></div>' : `
           <div class="grid-3">
-            ${this.tabData.subs.map(sub => `
-              <div class="card p-4">
-                <h4 style="font-weight:600">${escapeHTML(sub.name)}</h4>
-                <p class="text-sm text-muted truncate mt-2">${escapeHTML(sub.description)}</p>
-                <div class="mt-3"><span class="badge badge-gray">${sub.status || 'active'}</span></div>
+            ${this.tabData.subs.map(sub => {
+              const subBoms = this.tabData.allBoms ? this.tabData.allBoms.filter(b => b.projectId === sub.id) : [];
+              return `
+              <div class="card">
+                <div class="card-body">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 style="font-weight:600" class="truncate">${escapeHTML(sub.name)}</h4>
+                    <span class="badge badge-gray">${sub.status || 'active'}</span>
+                  </div>
+                  <p class="text-sm text-muted truncate">${escapeHTML(sub.description || 'No description')}</p>
+                  <div class="text-xs text-muted mt-2">${subBoms.length} BOM item${subBoms.length === 1 ? '' : 's'}</div>
+                  <div class="flex gap-2 mt-3" style="padding-top:12px;border-top:1px solid var(--border)">
+                    <button class="btn btn-secondary btn-sm" onclick="BomModule.pendingProject='${sub.id}';navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> BOM</button>
+                    <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.pendingScope='${sub.id}';navigate('spreadsheet')"><i class="fa-solid fa-table-cells"></i> Spreadsheet</button>
+                  </div>
+                </div>
               </div>
-            `).join('')}
+            `;}).join('')}
           </div>
         `}
       `;
@@ -225,23 +240,27 @@ const ProjectsModule = {
               <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>${installed} of ${boms.length} installed</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
               <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> Open Full BOM</button>
+            <button class="btn btn-secondary btn-sm" onclick="BomModule.pendingProject='${this.currentProject.id}';navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> Open Full BOM</button>
+            <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.pendingScope='${this.currentProject.id}';navigate('spreadsheet')"><i class="fa-solid fa-table-cells"></i> Spreadsheet</button>
           </div>
         ` : ''}
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Part</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
+            <thead><tr><th>Part</th>${this.tabData.subs.length ? '<th>Subsystem</th>' : ''}<th>Type</th><th>Qty</th><th>Status</th></tr></thead>
             <tbody>
               ${boms.map(b => {
                 const part = this.tabData.parts.find(pt => pt.id === b.partId);
                 const st = statusMap[b.status] || statusMap['not_started'];
+                const sub = this.tabData.subs.find(s => s.id === b.projectId);
+                const subCell = this.tabData.subs.length ? `<td data-label="Subsystem"><span class="chip"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i>${sub ? escapeHTML(sub.name) : 'Main'}</span></td>` : '';
                 return `<tr>
                   <td data-label="Part">${escapeHTML(part ? part.name : 'Unknown')}</td>
+                  ${subCell}
                   <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
                   <td data-label="Qty">${b.qtyNeeded}</td>
                   <td data-label="Status"><span class="badge badge-${st.class}">${st.label}</span></td>
                 </tr>`;
-              }).join('') || '<tr><td colspan="4" class="text-center" style="padding:24px;color:var(--text-3)">No BOM items — open the Bill of Materials page to add some.</td></tr>'}
+              }).join('') || `<tr><td colspan="${this.tabData.subs.length ? 5 : 4}" class="text-center" style="padding:24px;color:var(--text-3)">No BOM items — open the Bill of Materials page to add some.</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -291,21 +310,24 @@ const ProjectsModule = {
     newProj.name = newProj.name + ' (Copy)';
     const newId = await DB.add('projects', newProj);
 
-    // Clone subs
+    // Clone subsystems, keeping a map so their BOM items follow them
     const subs = this.projects.filter(sub => sub.parentId === id);
+    const subIdMap = { [id]: newId };
     for (const sub of subs) {
       const newSub = { ...sub };
       delete newSub.id;
       newSub.parentId = newId;
-      await DB.add('projects', newSub);
+      const newSubId = await DB.add('projects', newSub);
+      subIdMap[sub.id] = newSubId;
     }
 
-    // Clone BOM
-    const boms = await DB.getAllByIndex('bom_items', 'projectId', id);
+    // Clone BOM items for the project and every subsystem
+    const allBoms = await DB.getAll('bom_items');
+    const boms = allBoms.filter(b => subIdMap[b.projectId]);
     for (const b of boms) {
       const newB = { ...b };
       delete newB.id;
-      newB.projectId = newId;
+      newB.projectId = subIdMap[b.projectId];
       newB.status = 'not_started'; // reset status
       await DB.add('bom_items', newB);
     }
