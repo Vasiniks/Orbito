@@ -6,26 +6,38 @@
     <meta name="theme-color" content="#111113"/>
     <title>Orbito — Workspace Manager</title>
     <meta name="description" content="Manage parts, projects, tools, and people. Built for robotics teams."/>
-    <link rel="stylesheet" href="style.css?v=10"/>
+    <link rel="stylesheet" href="style.css?v=11"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
   <!-- Auth Overlays -->
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card">
-      <i class="fa-solid fa-robot fa-3x mb-4 text-blue"></i>
-      <h2>Welcome to Orbito</h2>
-      <p class="text-muted mb-4">Sign in to access your team workspace.</p>
-      <button id="googleSignInBtn" class="btn btn-primary" style="width:100%;justify-content:center"><i class="fa-brands fa-google"></i> Sign in with Google</button>
+      <div class="auth-brand">
+        <div class="auth-brand-icon" aria-hidden="true">O</div>
+        <span class="auth-brand-name">Orbito</span>
+      </div>
+      <h1 class="auth-title">Your shop, organized.</h1>
+      <p class="auth-sub">Parts, projects, tools, and people — one workspace your whole team can read at a glance.</p>
+      <ul class="auth-points">
+        <li><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> Inventory with photos &amp; locations</li>
+        <li><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> BOMs that track build progress</li>
+        <li><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> A map that walks you to any part</li>
+      </ul>
+      <button id="googleSignInBtn" class="btn btn-primary auth-cta"><i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google</button>
+      <p class="auth-foot">New members need a one-time approval from a team Mentor.</p>
     </div>
   </div>
-  
+
   <div id="pendingOverlay" class="auth-overlay" style="display:none">
     <div class="auth-card">
-      <i class="fa-solid fa-hourglass-half fa-3x mb-4 text-amber"></i>
-      <h2>Pending Approval</h2>
-      <p class="text-muted mb-4">Your account is pending approval from a Mentor. Please check back later.</p>
-      <button onclick="AuthModule.signOut()" class="btn btn-secondary" style="width:100%;justify-content:center">Sign Out</button>
+      <div class="auth-brand">
+        <div class="auth-brand-icon" aria-hidden="true">O</div>
+        <span class="auth-brand-name">Orbito</span>
+      </div>
+      <h1 class="auth-title">Almost there</h1>
+      <p class="auth-sub">Your account is waiting on approval from a Mentor. Check back once they've let you in.</p>
+      <button onclick="AuthModule.signOut()" class="btn btn-secondary auth-cta">Sign Out</button>
     </div>
   </div>
 
@@ -97,8 +109,8 @@
         <div class="main-content">
             <header class="topbar">
                 <div class="flex items-center gap-3">
-                    <button class="btn-icon" id="sidebarToggle" style="display:none;">
-                        <i class="fa-solid fa-bars"></i>
+                    <button class="btn-icon" id="sidebarToggle" style="display:none;" aria-label="Toggle navigation menu">
+                        <i class="fa-solid fa-bars" aria-hidden="true"></i>
                     </button>
                     <span class="topbar-title" id="topbarTitle">Dashboard</span>
                 </div>
@@ -119,8 +131,8 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- FAB -->
-<button class="fab" id="globalFab" title="Quick Add" style="display:none">
-  <i class="fa-solid fa-plus"></i>
+<button class="fab" id="globalFab" title="Quick Add" aria-label="Quick add" style="display:none">
+  <i class="fa-solid fa-plus" aria-hidden="true"></i>
 </button>
 
 <!-- Command Palette -->
@@ -136,7 +148,7 @@
     <div class="modal-panel" id="modalPanel">
         <div class="modal-header">
             <h2 id="modalTitle">Modal</h2>
-            <button class="modal-close" id="modalClose">&times;</button>
+            <button class="modal-close" id="modalClose" aria-label="Close dialog">&times;</button>
         </div>
         <div class="modal-body" id="modalBody"></div>
         <div class="modal-footer" id="modalFooter"></div>
@@ -144,22 +156,22 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=10"></script>
-<script src="db.js?v=10"></script>
-<script src="modules/projects.js?v=10"></script>
-<script src="modules/parts.js?v=10"></script>
-<script src="modules/bom.js?v=10"></script>
-<script src="modules/vendors.js?v=10"></script>
-<script src="modules/tools.js?v=10"></script>
-<script src="modules/people.js?v=10"></script>
-<script src="modules/tasks.js?v=10"></script>
-<script src="modules/workspace.js?v=10"></script>
-<script src="modules/spreadsheet.js?v=10"></script>
-<script src="modules/sketches.js?v=10"></script>
-<script src="modules/search.js?v=10"></script>
-<script src="modules/annotate.js?v=10"></script>
-<script src="modules/history.js?v=10"></script>
-<script src="modules/tour.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script type="module" src="auth.js?v=11"></script>
+<script src="db.js?v=11"></script>
+<script src="modules/projects.js?v=11"></script>
+<script src="modules/parts.js?v=11"></script>
+<script src="modules/bom.js?v=11"></script>
+<script src="modules/vendors.js?v=11"></script>
+<script src="modules/tools.js?v=11"></script>
+<script src="modules/people.js?v=11"></script>
+<script src="modules/tasks.js?v=11"></script>
+<script src="modules/workspace.js?v=11"></script>
+<script src="modules/spreadsheet.js?v=11"></script>
+<script src="modules/sketches.js?v=11"></script>
+<script src="modules/search.js?v=11"></script>
+<script src="modules/annotate.js?v=11"></script>
+<script src="modules/history.js?v=11"></script>
+<script src="modules/tour.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

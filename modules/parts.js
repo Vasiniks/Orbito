@@ -137,6 +137,7 @@ const PartsModule = {
             <th style="width:50px">Photo</th>
             <th style="cursor:pointer" onclick="PartsModule.toggleSort('name')">Name ${this.getSortIcon('name')}</th>
             <th style="cursor:pointer" onclick="PartsModule.toggleSort('category')">Category ${this.getSortIcon('category')}</th>
+            <th style="cursor:pointer" onclick="PartsModule.toggleSort('vendor')">Vendor ${this.getSortIcon('vendor')}</th>
             <th>Assigned To</th>
             <th style="cursor:pointer" onclick="PartsModule.toggleSort('location')">Location ${this.getSortIcon('location')}</th>
             <th style="cursor:pointer" class="text-right" onclick="PartsModule.toggleSort('inStock')">Stock ${this.getSortIcon('inStock')}</th>
@@ -149,6 +150,10 @@ const PartsModule = {
             const vendor = this.vendors.find(v => v.id === p.vendorId);
             const loc = this.locations.find(l => l.id === p.locationId);
             const assignee = p.assigneeId ? this.people.find(u => u.uid === p.assigneeId || u.id === p.assigneeId) : null;
+            // Tint the part name by stock level so low parts scan at a glance
+            const th = window.__stockThresholds || { high: 80, medium: 50, low: 10 };
+            const perc = (p.needed || 0) ? ((p.inStock || 0) / p.needed) * 100 : 100;
+            const nameCls = perc < th.low ? 'part-name-low' : perc < th.medium ? 'part-name-warn' : '';
             return `
               <tr>
                 <td><input type="checkbox" class="part-cb" value="${p.id}" ${this.selectedParts.has(p.id) ? 'checked' : ''} onchange="PartsModule.toggleSelect('${p.id}')"></td>
@@ -158,10 +163,11 @@ const PartsModule = {
                   </div>
                 </td>
                 <td data-label="Name" style="font-weight:500">
-                  <a href="#" onclick="event.preventDefault();PartsModule.showPartDetail('${p.id}')" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a>
+                  <a href="#" class="${nameCls}" onclick="event.preventDefault();PartsModule.showPartDetail('${p.id}')" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a>
                   ${(p.drawings && p.drawings.length) || p.onshapeUrl ? '<i class="fa-solid fa-paperclip text-muted" style="margin-left:4px;font-size:10px" title="Has drawings"></i>' : ''}
                 </td>
                 <td data-label="Category"><span class="badge badge-gray">${escapeHTML(p.category || '—')}</span></td>
+                <td data-label="Vendor">${getVendorChip(vendor?.name)}</td>
                 <td data-label="Assigned">
                   ${assignee ? `<div class="flex items-center gap-1"><div class="avatar" style="width:22px;height:22px;font-size:9px">${initials(assignee.name)}</div><span class="text-sm">${escapeHTML(assignee.name)}</span></div>` : '<span class="text-muted">—</span>'}
                 </td>
@@ -400,7 +406,7 @@ const PartsModule = {
         ${p.photo ? `<img src="${p.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:12px">` : ''}
         <div class="grid-2" style="gap:12px">
           <div><span class="text-muted text-xs">Category</span><div>${escapeHTML(p.category || '—')}</div></div>
-          <div><span class="text-muted text-xs">Vendor</span><div>${escapeHTML(vendor?.name || '—')}</div></div>
+          <div><span class="text-muted text-xs">Vendor</span><div style="margin-top:2px">${getVendorChip(vendor?.name)}</div></div>
           <div><span class="text-muted text-xs">Location</span><div>${escapeHTML(loc?.name || '—')}${p.containerId ? ` › ${escapeHTML(p.containerId)}` : ''}</div></div>
           <div><span class="text-muted text-xs">Assigned To</span><div>${escapeHTML(assignee?.name || 'Unassigned')}</div></div>
           <div><span class="text-muted text-xs">Stock / Needed</span><div>${getStockChip(p.inStock||0, p.needed||0, p.id)}</div></div>
@@ -424,9 +430,9 @@ const PartsModule = {
         <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
           <canvas id="sketchCanvas" width="400" height="300" style="display:block;width:100%"></canvas>
         </div>
-        <div class="flex gap-2 mt-3">
-          <button class="btn btn-secondary" onclick="PartsModule._clearSketch()">Clear</button>
-          <button class="btn btn-primary" onclick="PartsModule._saveSketch('${p.id}')">Save to Drawings</button>
+        <div class="sketch-actions">
+          <button class="btn btn-ghost" onclick="PartsModule._clearSketch()"><i class="fa-solid fa-eraser"></i> Clear</button>
+          <button class="btn btn-primary" onclick="PartsModule._saveSketch('${p.id}')"><i class="fa-solid fa-floppy-disk"></i> Save to Drawings</button>
         </div>
       </div>
     `, `

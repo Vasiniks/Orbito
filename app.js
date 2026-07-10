@@ -99,6 +99,34 @@ function getStockChip(inStock, needed, partId) {
   return `<span class="stock-chip ${cls}" data-part-id="${partId}" title="${inStock}/${needed}">${inStock}/${needed}</span>`;
 }
 
+// ── Detail chips (FRCBOM-style): machine/process, material, vendor ──
+function getProcessChip(process) {
+  if (!process) return '<span class="text-muted">—</span>';
+  const p = process.toLowerCase();
+  let icon = 'fa-gears';
+  if (p.includes('print')) icon = 'fa-cube';
+  else if (p.includes('lathe')) icon = 'fa-circle-notch';
+  else if (p.includes('laser')) icon = 'fa-bolt';
+  else if (p.includes('router')) icon = 'fa-wave-square';
+  else if (p.includes('order') || p.includes('buy') || p.includes('cots')) icon = 'fa-cart-shopping';
+  else if (p.includes('saw') || p.includes('cut')) icon = 'fa-scissors';
+  else if (p.includes('drill')) icon = 'fa-screwdriver-wrench';
+  else if (p.includes('weld')) icon = 'fa-fire';
+  else if (p.includes('bend') || p.includes('brake')) icon = 'fa-angles-up';
+  else if (p.includes('hand') || p.includes('file') || p.includes('assembl')) icon = 'fa-hand';
+  return `<span class="chip chip-process"><i class="fa-solid ${icon}"></i>${escapeHTML(process)}</span>`;
+}
+
+function getMaterialChip(material) {
+  if (!material) return '<span class="text-muted">—</span>';
+  return `<span class="chip chip-material"><i class="fa-solid fa-layer-group"></i>${escapeHTML(material)}</span>`;
+}
+
+function getVendorChip(vendorName) {
+  if (!vendorName) return '<span class="text-muted">—</span>';
+  return `<span class="chip chip-vendor"><i class="fa-solid fa-store"></i>${escapeHTML(vendorName)}</span>`;
+}
+
 function formatCurrency(n) {
   if (n == null || isNaN(n)) return '—';
   return '$' + Number(n).toFixed(2);

@@ -97,8 +97,8 @@ const BomModule = {
         <tr>
           <td data-label="Part">${escapeHTML(part ? part.name : 'Unknown Part')}</td>
           <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
-          <td data-label="Material">${escapeHTML(b.material || '—')}</td>
-          <td data-label="Process">${escapeHTML(b.process || '—')}</td>
+          <td data-label="Material">${getMaterialChip(b.material)}</td>
+          <td data-label="Process">${getProcessChip(b.process)}</td>
           <td data-label="Qty" class="text-right">${b.qtyNeeded}</td>
           <td data-label="In Stock" class="text-right">${part ? (part.inStock || 0) : 0}</td>
           <td data-label="Status">

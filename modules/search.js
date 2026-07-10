@@ -2,15 +2,15 @@ const SearchModule = {
   async render(container) {
     this.container = container;
     this.container.innerHTML = `
-      <div style="max-width: 800px; margin: 0 auto; padding-top: 40px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h2 style="font-size: 28px; margin-bottom: 8px;">Global Search</h2>
-          <p class="text-muted">Search across parts, people, tasks, and projects.</p>
+      <div class="global-search-wrap">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <h2 style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px;">Global Search</h2>
+          <p class="text-muted text-sm">Search across parts, people, tasks, and projects.</p>
         </div>
-        
-        <div class="search-box" style="margin-bottom: 30px; transform: scale(1.1); transform-origin: top center;">
-          <i class="fa-solid fa-magnifying-glass" style="font-size: 18px; left: 16px;"></i>
-          <input type="text" id="globalSearchInput" placeholder="Type what you are looking for..." style="padding: 16px 16px 16px 48px; font-size: 18px; border-radius: var(--radius-lg);">
+
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input type="text" id="globalSearchInput" placeholder="Type what you are looking for..." aria-label="Global search">
         </div>
 
         <div id="searchResults" class="history-feed"></div>
