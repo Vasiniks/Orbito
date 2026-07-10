@@ -6,26 +6,47 @@
     <meta name="theme-color" content="#111113"/>
     <title>Orbito — Workspace Manager</title>
     <meta name="description" content="Manage parts, projects, tools, and people. Built for robotics teams."/>
-    <link rel="stylesheet" href="style.css?v=11"/>
+    <link rel="stylesheet" href="style.css?v=12"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
-  <!-- Auth Overlays -->
+  <a href="#pageContent" class="skip-link">Skip to content</a>
+  <!-- Landing / Auth -->
   <div id="authOverlay" class="auth-overlay">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <div class="auth-brand-icon" aria-hidden="true">O</div>
-        <span class="auth-brand-name">Orbito</span>
+    <div class="landing">
+      <div class="landing-nav">
+        <div class="auth-brand" style="margin:0">
+          <div class="auth-brand-icon" aria-hidden="true">O</div>
+          <span class="auth-brand-name">Orbito</span>
+        </div>
       </div>
-      <h1 class="auth-title">Your shop, organized.</h1>
-      <p class="auth-sub">Parts, projects, tools, and people — one workspace your whole team can read at a glance.</p>
-      <ul class="auth-points">
-        <li><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> Inventory with photos &amp; locations</li>
-        <li><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> BOMs that track build progress</li>
-        <li><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> A map that walks you to any part</li>
-      </ul>
-      <button id="googleSignInBtn" class="btn btn-primary auth-cta"><i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google</button>
-      <p class="auth-foot">New members need a one-time approval from a team Mentor.</p>
+      <div class="landing-main">
+        <div class="landing-copy">
+          <p class="landing-eyebrow">Workspace manager for robotics teams</p>
+          <h1 class="landing-title">Every part, tool, and task. One clear place.</h1>
+          <p class="landing-sub">Track inventory, build BOMs, and keep the whole team on the same page — without the spreadsheet sprawl.</p>
+          <ul class="landing-points">
+            <li>
+              <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+              <div><strong>Inventory that scans at a glance</strong><span>Stock levels are color-coded, so low parts jump out.</span></div>
+            </li>
+            <li>
+              <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
+              <div><strong>BOMs with real build workflow</strong><span>Machine, material, and vendor chips — from ordered to installed.</span></div>
+            </li>
+            <li>
+              <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+              <div><strong>A map that walks you to any part</strong><span>Floorplan zones and containers, down to the exact bin.</span></div>
+            </li>
+          </ul>
+        </div>
+        <div class="auth-card">
+          <h2 class="auth-title">Sign in</h2>
+          <p class="auth-sub">Use your team Google account to open the workspace.</p>
+          <button id="googleSignInBtn" class="btn btn-primary auth-cta"><i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google</button>
+          <p class="auth-foot">New members need a one-time approval from a team Mentor.</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -156,22 +177,22 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=11"></script>
-<script src="db.js?v=11"></script>
-<script src="modules/projects.js?v=11"></script>
-<script src="modules/parts.js?v=11"></script>
-<script src="modules/bom.js?v=11"></script>
-<script src="modules/vendors.js?v=11"></script>
-<script src="modules/tools.js?v=11"></script>
-<script src="modules/people.js?v=11"></script>
-<script src="modules/tasks.js?v=11"></script>
-<script src="modules/workspace.js?v=11"></script>
-<script src="modules/spreadsheet.js?v=11"></script>
-<script src="modules/sketches.js?v=11"></script>
-<script src="modules/search.js?v=11"></script>
-<script src="modules/annotate.js?v=11"></script>
-<script src="modules/history.js?v=11"></script>
-<script src="modules/tour.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script type="module" src="auth.js?v=12"></script>
+<script src="db.js?v=12"></script>
+<script src="modules/projects.js?v=12"></script>
+<script src="modules/parts.js?v=12"></script>
+<script src="modules/bom.js?v=12"></script>
+<script src="modules/vendors.js?v=12"></script>
+<script src="modules/tools.js?v=12"></script>
+<script src="modules/people.js?v=12"></script>
+<script src="modules/tasks.js?v=12"></script>
+<script src="modules/workspace.js?v=12"></script>
+<script src="modules/spreadsheet.js?v=12"></script>
+<script src="modules/sketches.js?v=12"></script>
+<script src="modules/search.js?v=12"></script>
+<script src="modules/annotate.js?v=12"></script>
+<script src="modules/history.js?v=12"></script>
+<script src="modules/tour.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

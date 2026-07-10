@@ -154,8 +154,9 @@ const PartsModule = {
             const th = window.__stockThresholds || { high: 80, medium: 50, low: 10 };
             const perc = (p.needed || 0) ? ((p.inStock || 0) / p.needed) * 100 : 100;
             const nameCls = perc < th.low ? 'part-name-low' : perc < th.medium ? 'part-name-warn' : '';
+            const rowCls = perc < th.low ? 'row-stock-low' : perc < th.medium ? 'row-stock-warn' : '';
             return `
-              <tr>
+              <tr class="${rowCls}">
                 <td><input type="checkbox" class="part-cb" value="${p.id}" ${this.selectedParts.has(p.id) ? 'checked' : ''} onchange="PartsModule.toggleSelect('${p.id}')"></td>
                 <td data-label="Photo">
                   <div style="width:32px;height:32px;border-radius:4px;background:var(--bg-3);overflow:hidden">
@@ -176,10 +177,10 @@ const PartsModule = {
                 <td data-label="Cost" class="text-right">${formatCurrency(p.unitCost)}</td>
                 <td data-label="Actions" class="text-right">
                   <div class="flex items-center justify-end gap-1">
-                    ${p.locationId ? `<button class="btn-icon btn-sm" onclick="PartsModule.findPart('${p.id}')" title="Find Part"><i class="fa-solid fa-route"></i></button>` : ''}
-                    <button class="btn-icon btn-sm" onclick="PartsModule.showAdjustModal('${p.id}')" title="Adjust Qty"><i class="fa-solid fa-plus-minus"></i></button>
-                    <button class="btn-icon btn-sm" onclick="PartsModule.showEditModal('${p.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                    <button class="btn-icon btn-sm" style="color:var(--red)" onclick="PartsModule.deletePart('${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                    ${p.locationId ? `<button class="btn-icon btn-sm" onclick="PartsModule.findPart('${p.id}')" title="Find Part" aria-label="Find ${escapeHTML(p.name)}"><i class="fa-solid fa-route" aria-hidden="true"></i></button>` : ''}
+                    <button class="btn-icon btn-sm" onclick="PartsModule.showAdjustModal('${p.id}')" title="Adjust Qty" aria-label="Adjust quantity of ${escapeHTML(p.name)}"><i class="fa-solid fa-plus-minus" aria-hidden="true"></i></button>
+                    <button class="btn-icon btn-sm" onclick="PartsModule.showEditModal('${p.id}')" title="Edit" aria-label="Edit ${escapeHTML(p.name)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                    <button class="btn-icon btn-sm" style="color:var(--red)" onclick="PartsModule.deletePart('${p.id}')" title="Delete" aria-label="Delete ${escapeHTML(p.name)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                   </div>
                 </td>
               </tr>
@@ -427,8 +428,8 @@ const PartsModule = {
 
       <div id="partDetailSketch" style="display:none">
         <p class="text-sm text-muted mb-2">Draw a quick sketch or diagram for this part.</p>
-        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
-          <canvas id="sketchCanvas" width="400" height="300" style="display:block;width:100%"></canvas>
+        <div class="sketch-canvas-wrap">
+          <canvas id="sketchCanvas" width="400" height="300" style="display:block;width:100%;cursor:crosshair" aria-label="Sketch drawing canvas"></canvas>
         </div>
         <div class="sketch-actions">
           <button class="btn btn-ghost" onclick="PartsModule._clearSketch()"><i class="fa-solid fa-eraser"></i> Clear</button>

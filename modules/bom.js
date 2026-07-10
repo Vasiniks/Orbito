@@ -1,4 +1,8 @@
 // bom.js
+// Common shop machines/processes (FRCBOM-style). Free text is still allowed via the datalist input.
+const BOM_MACHINES = ['CNC Mill', 'CNC Router', 'Lathe', '3D Print', 'Laser Cut', 'Saw', 'Drill Press', 'Sheet Metal / Bend', 'Weld', 'Hand Tools', 'Order (COTS)'];
+const BOM_MACHINE_DATALIST = `<datalist id="bomMachineList">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist>`;
+
 const BOM_STATUS_ORDER = ['not_started', 'ordered', 'in_stock', 'installed'];
 const BOM_STATUS_MAP = {
   'not_started': { label: 'Not Started', class: 'gray' },
@@ -93,21 +97,28 @@ const BomModule = {
       const isDone = b.status === 'installed';
       const nextStatus = BOM_STATUS_ORDER[Math.min(BOM_STATUS_ORDER.indexOf(b.status || 'not_started') + 1, BOM_STATUS_ORDER.length - 1)];
 
+      // Color the part by how short we are (skip once installed)
+      const inStock = part ? (part.inStock || 0) : 0;
+      const short = !isDone && inStock < b.qtyNeeded;
+      const critical = short && inStock === 0;
+      const nameCls = critical ? 'part-name-low' : short ? 'part-name-warn' : '';
+      const rowCls = critical ? 'row-stock-low' : short ? 'row-stock-warn' : '';
+
       return `
-        <tr>
-          <td data-label="Part">${escapeHTML(part ? part.name : 'Unknown Part')}</td>
+        <tr class="${rowCls}">
+          <td data-label="Part"><span class="${nameCls}">${escapeHTML(part ? part.name : 'Unknown Part')}</span></td>
           <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
           <td data-label="Material">${getMaterialChip(b.material)}</td>
           <td data-label="Process">${getProcessChip(b.process)}</td>
           <td data-label="Qty" class="text-right">${b.qtyNeeded}</td>
-          <td data-label="In Stock" class="text-right">${part ? (part.inStock || 0) : 0}</td>
+          <td data-label="In Stock" class="text-right"><span class="${nameCls}">${inStock}</span></td>
           <td data-label="Status">
             <button class="badge badge-${st.class} bom-status-btn" title="${isDone ? 'Installed — done!' : 'Click to advance to ' + BOM_STATUS_MAP[nextStatus].label}" onclick="BomModule.advanceStatus('${b.id}')">${st.label}${isDone ? '' : ' <i class="fa-solid fa-angle-right" style="font-size:9px;opacity:0.7"></i>'}</button>
           </td>
           <td data-label="Line Total" class="text-right">${formatCurrency(cost)}</td>
           <td data-label="Actions" class="text-right">
-            <button class="btn-icon btn-sm" onclick="BomModule.showEditModal('${b.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-icon btn-sm text-red" style="color:var(--red)" onclick="BomModule.deleteItem('${b.id}')" title="Remove"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-icon btn-sm" onclick="BomModule.showEditModal('${b.id}')" title="Edit" aria-label="Edit BOM item"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+            <button class="btn-icon btn-sm" style="color:var(--red)" onclick="BomModule.deleteItem('${b.id}')" title="Remove" aria-label="Remove BOM item"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
           </td>
         </tr>
       `;
@@ -210,8 +221,10 @@ const BomModule = {
           <input type="text" class="form-input" id="bomMaterial" placeholder="e.g. 6061-T6, Polycarb">
         </div>
         <div class="form-group">
-          <label class="form-label">Process <span class="text-muted">(optional)</span></label>
-          <input type="text" class="form-input" id="bomProcess" placeholder="e.g. CNC mill, 3D print, Order">
+          <label class="form-label">Machine / Process <span class="text-muted">(optional)</span></label>
+          <input type="text" class="form-input" id="bomProcess" list="bomMachineList" placeholder="e.g. CNC Mill, 3D Print, Order">
+          ${BOM_MACHINE_DATALIST}
+          <div class="form-hint">Pick a machine from the list or type your own.</div>
         </div>
       </div>
     `;
@@ -261,8 +274,10 @@ const BomModule = {
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Process</label>
-        <input type="text" class="form-input" id="editBomProcess" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC mill, 3D print, Order">
+        <label class="form-label">Machine / Process</label>
+        <input type="text" class="form-input" id="editBomProcess" list="bomMachineList" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC Mill, 3D Print, Order">
+        ${BOM_MACHINE_DATALIST}
+        <div class="form-hint">Pick a machine from the list or type your own.</div>
       </div>
     `;
     const footer = `

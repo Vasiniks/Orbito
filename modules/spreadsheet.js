@@ -30,7 +30,7 @@ const SpreadsheetModule = {
       
       <div class="table-wrap" style="height:calc(100vh - 180px); overflow-y:auto; border-radius:0;">
         <table class="spreadsheet-table" style="font-size:12px; white-space:nowrap; width:max-content; min-width:100%;">
-          <thead style="position:sticky; top:0; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1), 0 1px 0 var(--border);">
+          <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 0 var(--border);">
             <tr>
               <th style="padding:6px 12px;border-right:1px solid var(--border)">ID</th>
               <th style="padding:6px 12px;border-right:1px solid var(--border)">Part Name</th>
@@ -68,11 +68,14 @@ const SpreadsheetModule = {
       const loc = this.locations.find(l => l.id === p.locationId);
       const assignee = this.people.find(u => u.id === p.assigneeId || u.uid === p.assigneeId);
       const totalVal = (p.inStock || 0) * (p.unitCost || 0);
+      const th = window.__stockThresholds || { high: 80, medium: 50, low: 10 };
+      const perc = (p.needed || 0) ? ((p.inStock || 0) / p.needed) * 100 : 100;
+      const nameCls = perc < th.low ? 'part-name-low' : perc < th.medium ? 'part-name-warn' : '';
 
       return `
         <tr class="ss-row" style="cursor:pointer" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${p.id}'))">
           <td style="padding:6px 12px;border-right:1px solid var(--border);color:var(--text-1);font-family:monospace">${p.id.substring(0,6)}</td>
-          <td style="padding:6px 12px;border-right:1px solid var(--border);font-weight:500">${escapeHTML(p.name)}</td>
+          <td style="padding:6px 12px;border-right:1px solid var(--border);font-weight:500" class="${nameCls}">${escapeHTML(p.name)}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border)">${escapeHTML(p.category || '')}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border)">${getStockChip(p.inStock||0, p.needed||0, p.id)}</td>
           <td style="padding:6px 12px;border-right:1px solid var(--border)">${p.needed || 0}</td>

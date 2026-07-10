@@ -27,7 +27,10 @@ async function navigate(view) {
 
   // Update sidebar
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === view);
+    const isActive = el.dataset.view === view;
+    el.classList.toggle('active', isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
   });
 
   // Update topbar
@@ -684,8 +687,8 @@ async function showQuickAddSketchModal() {
       </div>
       <div class="form-group">
         <label class="form-label">Sketch Canvas</label>
-        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
-          <canvas id="quickSketchCanvas" width="400" height="300" style="display:block;width:100%;cursor:crosshair"></canvas>
+        <div class="sketch-canvas-wrap">
+          <canvas id="quickSketchCanvas" width="400" height="300" style="display:block;width:100%;cursor:crosshair" aria-label="Sketch drawing canvas"></canvas>
         </div>
       </div>
     </div>
@@ -766,21 +769,21 @@ window.showQuickAddSketchModal = showQuickAddSketchModal;
     fab.style.display = '';
     fab.addEventListener('click', () => {
       openModal('Quick Add', `
-        <div class="grid-4" style="text-align:center">
-          <button class="btn btn-secondary flex items-center justify-center" style="flex-direction:column;padding:20px;gap:10px;height:auto" onclick="closeModal();navigate('parts').then(()=>document.getElementById('addPartBtn').click())">
-            <i class="fa-solid fa-screwdriver-wrench fa-2x text-blue" style="width:auto"></i>
+        <div class="qa-grid">
+          <button class="qa-tile" onclick="closeModal();navigate('parts').then(()=>document.getElementById('addPartBtn').click())">
+            <i class="fa-solid fa-screwdriver-wrench text-blue" aria-hidden="true"></i>
             <span>Part</span>
           </button>
-          <button class="btn btn-secondary flex items-center justify-center" style="flex-direction:column;padding:20px;gap:10px;height:auto" onclick="closeModal();navigate('tasks').then(()=>document.getElementById('addTaskBtn').click())">
-            <i class="fa-solid fa-list-check fa-2x text-purple" style="width:auto"></i>
+          <button class="qa-tile" onclick="closeModal();navigate('tasks').then(()=>document.getElementById('addTaskBtn').click())">
+            <i class="fa-solid fa-list-check text-purple" aria-hidden="true"></i>
             <span>Task</span>
           </button>
-          <button class="btn btn-secondary flex items-center justify-center" style="flex-direction:column;padding:20px;gap:10px;height:auto" onclick="closeModal();navigate('projects').then(()=>document.getElementById('addProjectBtn').click())">
-            <i class="fa-solid fa-folder-plus fa-2x text-accent" style="width:auto"></i>
+          <button class="qa-tile" onclick="closeModal();navigate('projects').then(()=>document.getElementById('addProjectBtn').click())">
+            <i class="fa-solid fa-folder-plus text-amber" aria-hidden="true"></i>
             <span>Project</span>
           </button>
-          <button class="btn btn-secondary flex items-center justify-center" style="flex-direction:column;padding:20px;gap:10px;height:auto" onclick="closeModal();window.showQuickAddSketchModal()">
-            <i class="fa-solid fa-pen-nib fa-2x text-rose" style="width:auto"></i>
+          <button class="qa-tile" onclick="closeModal();window.showQuickAddSketchModal()">
+            <i class="fa-solid fa-pen-nib text-rose" aria-hidden="true"></i>
             <span>Sketch</span>
           </button>
         </div>
