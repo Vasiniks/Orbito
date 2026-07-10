@@ -41,7 +41,7 @@ const ProjectsModule = {
     const topProjects = this.projects.filter(p => !p.parentId && p.name.toLowerCase().includes(q));
 
     if (topProjects.length === 0) {
-      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><i class="fa-solid fa-folder-open"></i><h3>No projects found</h3><p>Get started by adding your first project.</p></div>`;
+      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><i class="fa-solid fa-folder-open"></i><h3>No projects found</h3><p>Get started by adding your first project.</p><button class="btn btn-primary" onclick="ProjectsModule.showAddModal()"><i class="fa-solid fa-plus"></i> Add Project</button></div>`;
       return;
     }
 
@@ -209,19 +209,39 @@ const ProjectsModule = {
         `}
       `;
     } else if (tab === 'bom') {
+      const boms = this.tabData.boms;
+      const installed = boms.filter(b => b.status === 'installed').length;
+      const pct = boms.length ? Math.round((installed / boms.length) * 100) : 0;
+      const statusMap = {
+        'not_started': { label: 'Not Started', class: 'gray' },
+        'ordered':     { label: 'Ordered',     class: 'amber' },
+        'in_stock':    { label: 'In Stock',    class: 'blue' },
+        'installed':   { label: 'Installed',   class: 'green' }
+      };
       content.innerHTML = `
+        ${boms.length > 0 ? `
+          <div class="flex items-center gap-3 mb-4" style="flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>${installed} of ${boms.length} installed</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> Open Full BOM</button>
+          </div>
+        ` : ''}
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Part</th><th>Qty</th><th>Status</th></tr></thead>
+            <thead><tr><th>Part</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
             <tbody>
-              ${this.tabData.boms.map(b => {
+              ${boms.map(b => {
                 const part = this.tabData.parts.find(pt => pt.id === b.partId);
+                const st = statusMap[b.status] || statusMap['not_started'];
                 return `<tr>
-                  <td>${escapeHTML(part ? part.name : 'Unknown')}</td>
-                  <td>${b.qtyNeeded}</td>
-                  <td><span class="badge badge-gray">${b.status}</span></td>
+                  <td data-label="Part">${escapeHTML(part ? part.name : 'Unknown')}</td>
+                  <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
+                  <td data-label="Qty">${b.qtyNeeded}</td>
+                  <td data-label="Status"><span class="badge badge-${st.class}">${st.label}</span></td>
                 </tr>`;
-              }).join('') || '<tr><td colspan="3" class="text-center">No BOM items</td></tr>'}
+              }).join('') || '<tr><td colspan="4" class="text-center" style="padding:24px;color:var(--text-3)">No BOM items — open the Bill of Materials page to add some.</td></tr>'}
             </tbody>
           </table>
         </div>

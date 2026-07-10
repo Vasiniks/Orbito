@@ -1,5 +1,15 @@
 // bom.js
+const BOM_STATUS_ORDER = ['not_started', 'ordered', 'in_stock', 'installed'];
+const BOM_STATUS_MAP = {
+  'not_started': { label: 'Not Started', class: 'gray' },
+  'ordered':     { label: 'Ordered',     class: 'amber' },
+  'in_stock':    { label: 'In Stock',    class: 'blue' },
+  'installed':   { label: 'Installed',   class: 'green' }
+};
+
 const BomModule = {
+  typeFilter: 'all', // all | cots | inhouse
+
   async render(container) {
     this.container = container;
     await this.loadData();
@@ -49,72 +59,128 @@ const BomModule = {
     document.getElementById('exportBomBtn').onclick = () => this.exportCSV(projectId);
     document.getElementById('importBomBtn').onclick = () => this.showImportAllFromProjectModal(projectId);
 
-    const items = this.boms.filter(b => b.projectId === projectId);
-    
-    if (items.length === 0) {
-      document.getElementById('bomContent').innerHTML = '<div class="empty-state"><p>This project has no BOM items yet.</p></div>';
+    const allItems = this.boms.filter(b => b.projectId === projectId);
+
+    if (allItems.length === 0) {
+      document.getElementById('bomContent').innerHTML = `
+        <div class="empty-state">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <h3>No BOM items yet</h3>
+          <p>Add parts this project needs, then track each one from ordering to installation.</p>
+          <button class="btn btn-primary" onclick="BomModule.showAddModal('${projectId}')"><i class="fa-solid fa-plus"></i> Add First Item</button>
+        </div>`;
       return;
     }
 
+    // Stats always computed on the FULL list; filter only affects rows
     let totalCost = 0;
     let completedCount = 0;
+    let cotsCount = 0;
+    allItems.forEach(b => {
+      const part = this.parts.find(p => p.id === b.partId);
+      totalCost += part ? (part.unitCost || 0) * b.qtyNeeded : 0;
+      if (b.status === 'installed') completedCount++;
+      if (b.type === 'cots') cotsCount++;
+    });
+    const pct = Math.round((completedCount / allItems.length) * 100);
+
+    const items = this.typeFilter === 'all' ? allItems : allItems.filter(b => (b.type || 'cots') === this.typeFilter);
 
     const rows = items.map(b => {
       const part = this.parts.find(p => p.id === b.partId);
       const cost = part ? (part.unitCost || 0) * b.qtyNeeded : 0;
-      totalCost += cost;
-      if (b.status === 'installed') completedCount++;
-
-      const statusMap = {
-        'not_started': { label: 'Not Started', class: 'gray' },
-        'ordered': { label: 'Ordered', class: 'amber' },
-        'in_stock': { label: 'In Stock', class: 'blue' },
-        'installed': { label: 'Installed', class: 'green' }
-      };
-      const st = statusMap[b.status] || statusMap['not_started'];
+      const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP['not_started'];
+      const isDone = b.status === 'installed';
+      const nextStatus = BOM_STATUS_ORDER[Math.min(BOM_STATUS_ORDER.indexOf(b.status || 'not_started') + 1, BOM_STATUS_ORDER.length - 1)];
 
       return `
         <tr>
           <td data-label="Part">${escapeHTML(part ? part.name : 'Unknown Part')}</td>
-          <td data-label="Qty Needed" class="text-right">${b.qtyNeeded}</td>
-          <td data-label="In Stock (Total)" class="text-right">${part ? (part.inStock || 0) : 0}</td>
-          <td data-label="Status"><span class="badge badge-${st.class}">${st.label}</span></td>
-          <td data-label="Unit Cost" class="text-right">${formatCurrency(part ? part.unitCost : 0)}</td>
+          <td data-label="Type"><span class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'}">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</span></td>
+          <td data-label="Material">${escapeHTML(b.material || '—')}</td>
+          <td data-label="Process">${escapeHTML(b.process || '—')}</td>
+          <td data-label="Qty" class="text-right">${b.qtyNeeded}</td>
+          <td data-label="In Stock" class="text-right">${part ? (part.inStock || 0) : 0}</td>
+          <td data-label="Status">
+            <button class="badge badge-${st.class} bom-status-btn" title="${isDone ? 'Installed — done!' : 'Click to advance to ' + BOM_STATUS_MAP[nextStatus].label}" onclick="BomModule.advanceStatus('${b.id}')">${st.label}${isDone ? '' : ' <i class="fa-solid fa-angle-right" style="font-size:9px;opacity:0.7"></i>'}</button>
+          </td>
           <td data-label="Line Total" class="text-right">${formatCurrency(cost)}</td>
           <td data-label="Actions" class="text-right">
-            <button class="btn-icon btn-sm" onclick="BomModule.showEditModal('${b.id}')"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn-icon btn-sm text-red" style="color:var(--red)" onclick="BomModule.deleteItem('${b.id}')"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn-icon btn-sm" onclick="BomModule.showEditModal('${b.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-icon btn-sm text-red" style="color:var(--red)" onclick="BomModule.deleteItem('${b.id}')" title="Remove"><i class="fa-solid fa-trash"></i></button>
           </td>
         </tr>
       `;
     }).join('');
 
-    const pct = Math.round((completedCount / items.length) * 100);
-
     document.getElementById('bomContent').innerHTML = `
-      <div class="grid-4 mb-4">
-        <div class="card stat-card"><div class="stat-label">Total Items</div><div class="stat-value">${items.length}</div></div>
-        <div class="card stat-card"><div class="stat-label">Total Cost</div><div class="stat-value">${formatCurrency(totalCost)}</div></div>
-        <div class="card stat-card"><div class="stat-label">Installed</div><div class="stat-value">${completedCount}</div></div>
-        <div class="card stat-card"><div class="stat-label">Progress</div><div class="stat-value">${pct}%</div></div>
+      <div class="card mb-4" style="padding:16px 20px">
+        <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+          <div class="flex items-center gap-4" style="flex-wrap:wrap">
+            <div><span class="text-xs text-muted">Total</span><div style="font-size:20px;font-weight:700">${allItems.length}</div></div>
+            <div><span class="text-xs text-muted">Installed</span><div style="font-size:20px;font-weight:700;color:var(--green)">${completedCount}</div></div>
+            <div><span class="text-xs text-muted">COTS</span><div style="font-size:20px;font-weight:700;color:var(--cyan)">${cotsCount}</div></div>
+            <div><span class="text-xs text-muted">In-house</span><div style="font-size:20px;font-weight:700;color:var(--purple)">${allItems.length - cotsCount}</div></div>
+            <div><span class="text-xs text-muted">Budget</span><div style="font-size:20px;font-weight:700">${formatCurrency(totalCost)}</div></div>
+          </div>
+          <div style="min-width:180px;flex:1;max-width:320px">
+            <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>Progress</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>
+        </div>
       </div>
+
+      <div class="filter-chips mb-4">
+        <button class="filter-chip ${this.typeFilter === 'all' ? 'active' : ''}" onclick="BomModule.setTypeFilter('${projectId}', 'all')">All (${allItems.length})</button>
+        <button class="filter-chip ${this.typeFilter === 'cots' ? 'active' : ''}" onclick="BomModule.setTypeFilter('${projectId}', 'cots')">COTS (${cotsCount})</button>
+        <button class="filter-chip ${this.typeFilter === 'inhouse' ? 'active' : ''}" onclick="BomModule.setTypeFilter('${projectId}', 'inhouse')">In-house (${allItems.length - cotsCount})</button>
+      </div>
+
+      ${items.length === 0 ? '<div class="empty-state" style="padding:30px"><p>No items match this filter.</p></div>' : `
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Part</th>
-              <th class="text-right">Qty Needed</th>
-              <th class="text-right">In Stock (Total)</th>
+              <th>Type</th>
+              <th>Material</th>
+              <th>Process</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">In Stock</th>
               <th>Status</th>
-              <th class="text-right">Unit Cost</th>
               <th class="text-right">Line Total</th>
               <th class="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>
+      </div>`}
     `;
+  },
+
+  setTypeFilter(projectId, filter) {
+    this.typeFilter = filter;
+    this.renderBomForProject(projectId);
+  },
+
+  async advanceStatus(id) {
+    const item = this.boms.find(b => b.id === id);
+    if (!item) return;
+    const idx = BOM_STATUS_ORDER.indexOf(item.status || 'not_started');
+    if (idx >= BOM_STATUS_ORDER.length - 1) {
+      return toast('Already installed — nice work!', 'info');
+    }
+    item.status = BOM_STATUS_ORDER[idx + 1];
+    try {
+      await DB.put('bom_items', item);
+      const part = this.parts.find(p => p.id === item.partId);
+      HistoryModule.log('update', 'bom_item', id, part ? part.name : 'Unknown Part', `Status → ${BOM_STATUS_MAP[item.status].label}`);
+      toast(`${part ? part.name : 'Item'}: ${BOM_STATUS_MAP[item.status].label}`, 'success');
+      await this.loadData();
+      this.renderBomForProject(item.projectId);
+    } catch (err) {
+      toast('Error updating status', 'error');
+    }
   },
 
   async showAddModal(projectId) {
@@ -125,9 +191,28 @@ const BomModule = {
         <label class="form-label">Part</label>
         <select class="form-select" id="bomPartSelect">${partOptions}</select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Quantity Needed</label>
-        <input type="number" class="form-input" id="bomQty" value="1" min="1">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Quantity Needed</label>
+          <input type="number" class="form-input" id="bomQty" value="1" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="bomType">
+            <option value="cots">COTS (bought)</option>
+            <option value="inhouse">In-house (made)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Material <span class="text-muted">(optional)</span></label>
+          <input type="text" class="form-input" id="bomMaterial" placeholder="e.g. 6061-T6, Polycarb">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Process <span class="text-muted">(optional)</span></label>
+          <input type="text" class="form-input" id="bomProcess" placeholder="e.g. CNC mill, 3D print, Order">
+        </div>
       </div>
     `;
     const footer = `
@@ -162,6 +247,23 @@ const BomModule = {
           </select>
         </div>
       </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="editBomType">
+            <option value="cots" ${(item.type || 'cots') === 'cots' ? 'selected' : ''}>COTS (bought)</option>
+            <option value="inhouse" ${item.type === 'inhouse' ? 'selected' : ''}>In-house (made)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Material</label>
+          <input type="text" class="form-input" id="editBomMaterial" value="${escapeHTML(item.material || '')}" placeholder="e.g. 6061-T6">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Process</label>
+        <input type="text" class="form-input" id="editBomProcess" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC mill, 3D print, Order">
+      </div>
     `;
     const footer = `
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -181,7 +283,10 @@ const BomModule = {
 
     try {
       const newId = await DB.add('bom_items', {
-        projectId, partId, qtyNeeded, status: 'not_started'
+        projectId, partId, qtyNeeded, status: 'not_started',
+        type: document.getElementById('bomType').value,
+        material: document.getElementById('bomMaterial').value.trim(),
+        process: document.getElementById('bomProcess').value.trim()
       });
       const part = this.parts.find(p => p.id === partId);
       HistoryModule.log('create', 'bom_item', newId || 'new', part ? part.name : 'Unknown Part');
@@ -201,7 +306,10 @@ const BomModule = {
     const item = this.boms.find(b => b.id === id);
     item.qtyNeeded = parseInt(document.getElementById('editBomQty').value) || 1;
     item.status = document.getElementById('editBomStatus').value;
-    
+    item.type = document.getElementById('editBomType').value;
+    item.material = document.getElementById('editBomMaterial').value.trim();
+    item.process = document.getElementById('editBomProcess').value.trim();
+
     try {
       await DB.put('bom_items', item);
       const part = this.parts.find(p => p.id === item.partId);
@@ -232,12 +340,12 @@ const BomModule = {
     const items = this.boms.filter(b => b.projectId === projectId);
     const p = this.projects.find(x => x.id === projectId);
     
-    let csv = 'Part Name,Qty Needed,In Stock,Status,Unit Cost,Line Total\n';
+    let csv = 'Part Name,Type,Material,Process,Qty Needed,In Stock,Status,Unit Cost,Line Total\n';
+    const esc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
     items.forEach(b => {
       const part = this.parts.find(pt => pt.id === b.partId);
-      const name = part ? `"${part.name.replace(/"/g, '""')}"` : 'Unknown';
       const cost = part ? (part.unitCost || 0) : 0;
-      csv += `${name},${b.qtyNeeded},${part ? part.inStock||0 : 0},${b.status},${cost},${cost * b.qtyNeeded}\n`;
+      csv += `${esc(part ? part.name : 'Unknown')},${b.type === 'inhouse' ? 'In-house' : 'COTS'},${esc(b.material)},${esc(b.process)},${b.qtyNeeded},${part ? part.inStock||0 : 0},${b.status},${cost},${cost * b.qtyNeeded}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -290,7 +398,10 @@ const BomModule = {
             projectId: targetProjectId,
             partId: item.partId,
             qtyNeeded: item.qtyNeeded,
-            status: 'not_started'
+            status: 'not_started',
+            type: item.type || 'cots',
+            material: item.material || '',
+            process: item.process || ''
           });
           const part = this.parts.find(p => p.id === item.partId);
           if (window.HistoryModule) {

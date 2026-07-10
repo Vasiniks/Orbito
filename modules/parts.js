@@ -125,7 +125,7 @@ const PartsModule = {
 
     const wrap = document.getElementById('partsTableWrap');
     if (filtered.length === 0) {
-      wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-screwdriver-wrench"></i><h3>No parts found</h3><p>Adjust your filters or add some parts to your inventory.</p></div>`;
+      wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-screwdriver-wrench"></i><h3>No parts found</h3><p>Adjust your filters or add some parts to your inventory.</p><button class="btn btn-primary" onclick="PartsModule.showAddModal()"><i class="fa-solid fa-plus"></i> Add Part</button></div>`;
       return;
     }
 

@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta name="theme-color" content="#111113"/>
     <title>Orbito — Workspace Manager</title>
     <meta name="description" content="Manage parts, projects, tools, and people. Built for robotics teams."/>
-    <link rel="stylesheet" href="style.css?v=9"/>
+    <link rel="stylesheet" href="style.css?v=10"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
@@ -101,7 +102,12 @@
                     </button>
                     <span class="topbar-title" id="topbarTitle">Dashboard</span>
                 </div>
-                <div class="topbar-actions" id="topbarActions"></div>
+                <div class="flex items-center gap-2">
+                    <div class="topbar-actions" id="topbarActions"></div>
+                    <button class="btn-icon" id="helpBtn" title="Help & Tutorial" aria-label="Help and tutorial">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </button>
+                </div>
             </header>
             <main class="page-content" id="pageContent">
                 <!-- Dynamic content renders here -->
@@ -138,21 +144,22 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=9"></script>
-<script src="db.js?v=9"></script>
-<script src="modules/projects.js?v=9"></script>
-<script src="modules/parts.js?v=9"></script>
-<script src="modules/bom.js?v=9"></script>
-<script src="modules/vendors.js?v=9"></script>
-<script src="modules/tools.js?v=9"></script>
-<script src="modules/people.js?v=9"></script>
-<script src="modules/tasks.js?v=9"></script>
-<script src="modules/workspace.js?v=9"></script>
-<script src="modules/spreadsheet.js?v=9"></script>
-<script src="modules/sketches.js?v=9"></script>
-<script src="modules/search.js?v=9"></script>
-<script src="modules/annotate.js?v=9"></script>
-<script src="modules/history.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script type="module" src="auth.js?v=10"></script>
+<script src="db.js?v=10"></script>
+<script src="modules/projects.js?v=10"></script>
+<script src="modules/parts.js?v=10"></script>
+<script src="modules/bom.js?v=10"></script>
+<script src="modules/vendors.js?v=10"></script>
+<script src="modules/tools.js?v=10"></script>
+<script src="modules/people.js?v=10"></script>
+<script src="modules/tasks.js?v=10"></script>
+<script src="modules/workspace.js?v=10"></script>
+<script src="modules/spreadsheet.js?v=10"></script>
+<script src="modules/sketches.js?v=10"></script>
+<script src="modules/search.js?v=10"></script>
+<script src="modules/annotate.js?v=10"></script>
+<script src="modules/history.js?v=10"></script>
+<script src="modules/tour.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

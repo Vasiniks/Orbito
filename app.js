@@ -127,6 +127,47 @@ function debounce(func, wait) {
   };
 }
 
+// ── Contextual Help ──
+const VIEW_HELP = {
+  dashboard: 'Your team at a glance: project counts, stock totals, recent tasks, and the roster. Numbers update live as the team works.',
+  projects: 'Projects hold sub-projects, a BOM, and tasks. Click a card to open it, use Duplicate to reuse a season\'s structure as a template.',
+  parts: 'Your inventory. Click a part name for details, drawings, and a sketch pad. Click a stock chip to quick-edit quantities, or use the route icon to get walked to the part\'s location.',
+  bom: 'Pick a project, then track every item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it one step. Filter by COTS vs In-house, and export to CSV for ordering.',
+  vendors: 'Keep vendor contact info and links in one place. Parts reference vendors for ordering.',
+  tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
+  people: 'Team roster with roles. Mentors approve new signups here.',
+  tasks: 'Kanban board: drag-free columns for To Do, In Progress, and Done. Filter by project or assignee.',
+  history: 'A feed of every change: who did what, and when.',
+  workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
+  spreadsheet: 'A dense, spreadsheet-style view of all parts for fast scanning and bulk review.',
+  sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
+  search: 'Search across parts, projects, people, and tasks. Tip: press Ctrl/Cmd+K from anywhere.',
+  settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
+};
+
+function showHelpModal() {
+  const tip = VIEW_HELP[currentView] || VIEW_HELP.dashboard;
+  openModal('Help', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:6px">About this page</div>
+        <p class="text-sm">${tip}</p>
+      </div>
+      <div>
+        <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:6px">Shortcuts</div>
+        <p class="text-sm"><span class="badge badge-gray mono">Ctrl/Cmd + K</span> Search everywhere &nbsp; <span class="badge badge-gray mono">Esc</span> Close dialogs</p>
+      </div>
+      <div>
+        <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:6px">New here?</div>
+        <p class="text-sm">Replay the guided tour to get a walkthrough of every section.</p>
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal();TourModule.start()"><i class="fa-solid fa-wand-magic-sparkles"></i> Replay Tour</button>
+    <button class="btn btn-primary" onclick="closeModal()">Got it</button>
+  `);
+}
+
 // ── Dashboard ──
 async function renderDashboard(container) {
   const [projects, parts, tools, people, tasks, vendors, locations] = await Promise.all([
@@ -147,7 +188,37 @@ async function renderDashboard(container) {
   const totalNeeded = parts.reduce((s, p) => s + (p.needed || 0), 0);
   const checkedOut = tools.filter(t => t.checkedOutBy).length;
 
+  const isEmpty = parts.length === 0 && projects.length === 0 && tools.length === 0;
+  const gettingStarted = isEmpty ? `
+    <div class="card mb-4" style="border-color:var(--accent-border)">
+      <div class="card-header"><h3><i class="fa-solid fa-rocket text-accent"></i> Getting Started</h3></div>
+      <div class="card-body">
+        <p class="text-sm text-muted" style="margin-bottom:14px">Your workspace is empty. Here's the fastest way to get set up:</p>
+        <div class="gs-steps">
+          <a class="gs-step" href="#parts" onclick="event.preventDefault();navigate('parts')">
+            <div class="gs-step-num">1</div>
+            <div><div class="gs-step-title">Add your parts</div><div class="gs-step-sub">Build your inventory with photos, stock counts, and locations.</div></div>
+          </a>
+          <a class="gs-step" href="#workspace" onclick="event.preventDefault();navigate('workspace')">
+            <div class="gs-step-num">2</div>
+            <div><div class="gs-step-title">Map your shop</div><div class="gs-step-sub">Upload a floorplan and draw storage zones on it.</div></div>
+          </a>
+          <a class="gs-step" href="#projects" onclick="event.preventDefault();navigate('projects')">
+            <div class="gs-step-num">3</div>
+            <div><div class="gs-step-title">Create a project</div><div class="gs-step-sub">Then build its BOM and assign tasks to the team.</div></div>
+          </a>
+          <a class="gs-step" href="#settings" onclick="event.preventDefault();navigate('settings')">
+            <div class="gs-step-num"><i class="fa-solid fa-flask" style="font-size:11px"></i></div>
+            <div><div class="gs-step-title">…or load sample data</div><div class="gs-step-sub">Explore Orbito with a realistic demo database (Settings → Sample Data).</div></div>
+          </a>
+        </div>
+        <button class="btn btn-secondary btn-sm mt-3" onclick="TourModule.start()"><i class="fa-solid fa-wand-magic-sparkles"></i> Take the tour</button>
+      </div>
+    </div>
+  ` : '';
+
   container.innerHTML = `
+    ${gettingStarted}
     <div class="grid-4 mb-4">
       <div class="card stat-card">
         <div class="stat-icon" style="background:var(--accent-dim);color:var(--accent)"><i class="fa-solid fa-folder-open"></i></div>
@@ -515,20 +586,29 @@ window.App = {
       sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
     }
     
-    // Swipe to close
-    let touchStartX = 0;
-    let touchEndX = 0;
+    // ── Touch gestures: edge-swipe right to open sidebar, swipe left to close ──
+    let touchStartX = 0, touchStartY = 0, touchStartT = 0;
     document.addEventListener('touchstart', e => {
       touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+      touchStartT = Date.now();
     }, {passive: true});
-    
+
     document.addEventListener('touchend', e => {
-      touchEndX = e.changedTouches[0].screenX;
-      if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
-        // Swipe left
-        if (touchStartX - touchEndX > 50) {
-          toggleSidebar(false);
-        }
+      if (window.innerWidth > 768) return;
+      // Ignore gestures inside canvases, horizontal scrollers, or open modals
+      if (e.target.closest('canvas, .kanban, .table-wrap, .modal-overlay.open, .cmd-overlay.open, .tour-overlay.open')) return;
+
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+      const dt = Date.now() - touchStartT;
+      // Require a mostly-horizontal, reasonably quick swipe
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
+
+      if (dx < 0 && sidebar.classList.contains('open')) {
+        toggleSidebar(false);           // swipe left → close
+      } else if (dx > 0 && !sidebar.classList.contains('open') && touchStartX < 40) {
+        toggleSidebar(true);            // swipe right from left edge → open
       }
     }, {passive: true});
     
@@ -543,6 +623,12 @@ window.App = {
         if (window.innerWidth <= 768) toggleSidebar(false);
       });
     });
+
+    // Help button
+    document.getElementById('helpBtn').addEventListener('click', showHelpModal);
+
+    // First-visit guided tour
+    if (window.TourModule) TourModule.maybeAutoStart();
 
     // Hash routing
     const hash = location.hash.slice(1) || 'dashboard';
