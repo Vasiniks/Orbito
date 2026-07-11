@@ -15,7 +15,7 @@ const TourModule = {
     {
       target: '[data-view="projects"]',
       title: 'Projects',
-      body: 'Create projects and sub-projects (like Drivetrain or Intake). Each one tracks its own tasks, BOM, and progress.',
+      body: 'Create projects and subsystems (like Drivetrain or Intake). Each subsystem gets a numeric code that auto-numbers its parts.',
       openSidebar: true,
     },
     {
@@ -25,9 +25,9 @@ const TourModule = {
       openSidebar: true,
     },
     {
-      target: '[data-view="bom"]',
-      title: 'Bill of Materials',
-      body: 'Pick a project to see its BOM. Track each item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it.',
+      target: '[data-view="spreadsheet"]',
+      title: 'Master Spreadsheet',
+      body: 'Every part your project needs, grouped by subsystem. Click any chip to edit it in place, and click a status to pick the next stage.',
       openSidebar: true,
     },
     {

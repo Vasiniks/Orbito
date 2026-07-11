@@ -188,7 +188,7 @@ const ProjectsModule = {
 
       <div class="tabs">
         <button class="tab active" onclick="ProjectsModule.switchTab('subs', this)">Subsystems (${subs.length})</button>
-        <button class="tab" onclick="ProjectsModule.switchTab('bom', this)">BOM (${boms.length})</button>
+        <button class="tab" onclick="ProjectsModule.switchTab('bom', this)">Parts (${boms.length})</button>
         <button class="tab" onclick="ProjectsModule.switchTab('tasks', this)">Tasks (${projTasks.length})</button>
       </div>
 
@@ -224,7 +224,6 @@ const ProjectsModule = {
                   <p class="text-sm text-muted truncate">${escapeHTML(sub.description || 'No description')}</p>
                   <div class="text-xs text-muted mt-2">${subBoms.length} BOM item${subBoms.length === 1 ? '' : 's'}</div>
                   <div class="flex gap-2 mt-3" style="padding-top:12px;border-top:1px solid var(--border)">
-                    <button class="btn btn-secondary btn-sm" onclick="BomModule.pendingProject='${sub.id}';navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> BOM</button>
                     <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.pendingScope='${sub.id}';navigate('spreadsheet')"><i class="fa-solid fa-table-cells"></i> Spreadsheet</button>
                   </div>
                 </div>
@@ -246,8 +245,7 @@ const ProjectsModule = {
               <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>${done} of ${active} done</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
               <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="BomModule.pendingProject='${this.currentProject.id}';navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> Open Full BOM</button>
-            <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.pendingScope='${this.currentProject.id}';navigate('spreadsheet')"><i class="fa-solid fa-table-cells"></i> Spreadsheet</button>
+            <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.pendingScope='${this.currentProject.id}';navigate('spreadsheet')"><i class="fa-solid fa-table-cells"></i> Open Spreadsheet</button>
           </div>
         ` : ''}
         <div class="table-wrap">
@@ -266,7 +264,7 @@ const ProjectsModule = {
                   <td data-label="Qty">${b.qtyNeeded}</td>
                   <td data-label="Status"><span class="badge badge-${st.class}">${st.label}</span></td>
                 </tr>`;
-              }).join('') || `<tr><td colspan="${this.tabData.subs.length ? 5 : 4}" class="text-center" style="padding:24px;color:var(--text-3)">No BOM items — open the Bill of Materials page to add some.</td></tr>`}
+              }).join('') || `<tr><td colspan="${this.tabData.subs.length ? 5 : 4}" class="text-center" style="padding:24px;color:var(--text-3)">No parts tracked yet — open the Master Spreadsheet to add some.</td></tr>`}
             </tbody>
           </table>
         </div>

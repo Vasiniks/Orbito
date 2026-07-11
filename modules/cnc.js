@@ -84,7 +84,6 @@ const CncModule = {
 
     // Queue stats on the full (unfinished-only aware) list
     const waiting = items.filter(({ b }) => !BOM_DONE_STATUSES.includes(b.status)).length;
-    const verified = items.filter(({ b }) => b.verified).length;
 
     if (items.length === 0) {
       content.innerHTML = `
@@ -97,7 +96,7 @@ const CncModule = {
     }
 
     content.innerHTML = `
-      <p class="text-sm text-muted mb-3">${waiting} part${waiting === 1 ? '' : 's'} in the ${machineLabel} queue · ${verified} verified. Click a status to advance it as parts come off the machine.</p>
+      <p class="text-sm text-muted mb-3">${waiting} part${waiting === 1 ? '' : 's'} in the ${machineLabel} queue. Click a status to update it as parts come off the machine.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -109,7 +108,6 @@ const CncModule = {
               <th>Machine</th>
               <th class="text-right">Qty</th>
               <th>Assigned</th>
-              <th>✓</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -118,22 +116,18 @@ const CncModule = {
               const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP[bomLadder(b)[0]];
               const isDone = BOM_DONE_STATUSES.includes(b.status);
               const rowCls = isDone ? 'row-not-used' : '';
+              const color = proj?.parentId ? subsystemColor(proj) : 'gray';
               return `
                 <tr class="${rowCls}">
-                  <td data-label="Part #">${getPartNumberChip(b.partNumber)}</td>
+                  <td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>
                   <td data-label="Part" style="font-weight:500">${escapeHTML(part?.name || 'Unknown Part')}${b.comments ? ` <i class="fa-solid fa-comment text-muted" style="font-size:10px" title="${escapeHTML(b.comments)}"></i>` : ''}</td>
-                  <td data-label="Subsystem"><span class="chip"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i>${escapeHTML(proj ? ((proj.code ? proj.code + ' · ' : '') + proj.name) : '?')}</span></td>
+                  <td data-label="Subsystem">${getSubsystemChip(proj, proj?.name || '?')}</td>
                   <td data-label="Material">${getMaterialChip(b.material)}</td>
                   <td data-label="Machine">${getProcessChip(b.process)}</td>
                   <td data-label="Qty" class="text-right">${b.qtyNeeded}</td>
                   <td data-label="Assigned">${b.assignee ? `<span class="text-sm">${escapeHTML(b.assignee)}</span>` : '<span class="text-muted">—</span>'}</td>
-                  <td data-label="Verified">
-                    <button class="verify-chip ${b.verified ? 'on' : ''}" onclick="CncModule.toggleVerified('${b.id}')" title="${b.verified ? 'Verified — click to unverify' : 'Not verified — click to verify'}" aria-label="Toggle verified">
-                      <i class="fa-solid ${b.verified ? 'fa-check' : 'fa-minus'}" aria-hidden="true"></i>
-                    </button>
-                  </td>
                   <td data-label="Status">
-                    <button class="badge badge-${st.class} bom-status-btn" onclick="CncModule.advanceStatus('${b.id}')" title="${isDone ? 'Done!' : 'Click to advance status'}">${st.label}${isDone ? '' : ' <i class="fa-solid fa-angle-right" style="font-size:9px;opacity:0.7"></i>'}</button>
+                    <button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();CncModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button>
                   </td>
                 </tr>
               `;
@@ -144,51 +138,31 @@ const CncModule = {
     `;
   },
 
-  async toggleVerified(id) {
+  pickStatus(id, anchor) {
     const item = this.boms.find(b => b.id === id);
     if (!item) return;
-    item.verified = !item.verified;
-    try {
-      await DB.put('bom_items', item);
-      const part = this.parts.find(p => p.id === item.partId);
-      HistoryModule.log('update', 'bom_item', id, part?.name || 'Unknown Part', item.verified ? 'Verified' : 'Unverified');
-      this.renderList();
-    } catch (err) {
-      toast('Error updating verified flag', 'error');
-    }
-  },
-
-  async advanceStatus(id) {
-    const item = this.boms.find(b => b.id === id);
-    if (!item) return;
-    const ladder = bomLadder(item);
-    let idx = ladder.indexOf(item.status);
-    if (idx === -1) {
-      const other = ladder === BOM_LADDERS.cots ? BOM_LADDERS.inhouse : BOM_LADDERS.cots;
-      idx = other.indexOf(item.status);
-    }
-    if (idx >= ladder.length - 1) {
-      return toast('Already done — nice work!', 'info');
-    }
-    item.status = ladder[idx + 1];
-    try {
-      await DB.put('bom_items', item);
-      const part = this.parts.find(p => p.id === item.partId);
-      HistoryModule.log('update', 'bom_item', id, part?.name || 'Unknown Part', `Status → ${BOM_STATUS_MAP[item.status].label}`);
-      toast(`${part?.name || 'Item'}: ${BOM_STATUS_MAP[item.status].label}`, 'success');
-      this.renderList();
-    } catch (err) {
-      toast('Error updating status', 'error');
-    }
+    showStatusMenu(anchor, item.status, async (status) => {
+      if (status === item.status) return;
+      item.status = status;
+      try {
+        await DB.put('bom_items', item);
+        const part = this.parts.find(p => p.id === item.partId);
+        HistoryModule.log('update', 'bom_item', id, part?.name || 'Unknown Part', `Status → ${BOM_STATUS_MAP[status].label}`);
+        toast(`${part?.name || 'Item'}: ${BOM_STATUS_MAP[status].label}`, 'success');
+        this.renderList();
+      } catch (err) {
+        toast('Error updating status', 'error');
+      }
+    });
   },
 
   exportCSV() {
     const items = this.queueItems();
     const machineLabel = this.MACHINE_TABS.find(t => t.key === this.machineFilter)?.label || 'machines';
     const esc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
-    let csv = 'Part Number,Part Name,Subsystem,Material,Machine,Qty,Assigned To,Verified,Status\n';
+    let csv = 'Part Number,Part Name,Subsystem,Material,Machine,Qty,Assigned To,Status\n';
     items.forEach(({ b, part, proj }) => {
-      csv += [b.partNumber, part?.name || 'Unknown', proj?.name || '', b.material, b.process, b.qtyNeeded, b.assignee, b.verified ? 'TRUE' : 'FALSE', BOM_STATUS_MAP[b.status]?.label || b.status].map(esc).join(',') + '\n';
+      csv += [b.partNumber, part?.name || 'Unknown', proj?.name || '', b.material, b.process, b.qtyNeeded, b.assignee, BOM_STATUS_MAP[b.status]?.label || b.status].map(esc).join(',') + '\n';
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

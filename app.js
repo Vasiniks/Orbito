@@ -5,7 +5,6 @@ const MODULES = {
   dashboard: { title: 'Dashboard', render: renderDashboard },
   projects:  { title: 'Projects',  render: (c) => ProjectsModule.render(c) },
   parts:     { title: 'Parts & Inventory', render: (c) => PartsModule.render(c) },
-  bom:       { title: 'Bill of Materials',  render: (c) => BomModule.render(c) },
   cnc:       { title: 'CNC List', render: (c) => CncModule.render(c) },
   vendors:   { title: 'Vendors',   render: (c) => VendorsModule.render(c) },
   tools:     { title: 'Tools',     render: (c) => ToolsModule.render(c) },
@@ -13,7 +12,7 @@ const MODULES = {
   tasks:     { title: 'Tasks',     render: (c) => TasksModule.render(c) },
   history:   { title: 'Activity',  render: (c) => HistoryModule.render(c) },
   workspace: { title: 'Workspace Map', render: (c) => WorkspaceModule.render(c) },
-  spreadsheet: { title: 'Spreadsheet View', render: (c) => SpreadsheetModule.render(c) },
+  spreadsheet: { title: 'Master Spreadsheet', render: (c) => SpreadsheetModule.render(c) },
   sketches:  { title: 'Global Sketches', render: (c) => SketchesModule.render(c) },
   search:    { title: 'Find / Search', render: (c) => SearchModule.render(c) },
   settings:  { title: 'Settings',  render: renderSettings },
@@ -194,9 +193,8 @@ function debounce(func, wait) {
 // ── Contextual Help ──
 const VIEW_HELP = {
   dashboard: 'Your team at a glance: project counts, stock totals, recent tasks, and the roster. Numbers update live as the team works.',
-  projects: 'Projects hold subsystems (like Elevator or Arm), a BOM, and tasks. Each subsystem gets its own BOM and spreadsheet; the project rolls them up. Use Duplicate to reuse a season\'s structure as a template.',
+  projects: 'Projects hold subsystems (like Elevator or Arm) and tasks. The master spreadsheet tracks every subsystem\'s parts in one place. Use Duplicate to reuse a season\'s structure as a template.',
   parts: 'Your inventory. Click a part name for details, drawings, and a sketch pad. Click a stock chip to quick-edit quantities, or use the route icon to get walked to the part\'s location.',
-  bom: 'Pick a project or subsystem, then track every item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it one step. Selecting a project shows all its subsystems rolled up. Filter by COTS vs In-house, and export to CSV for ordering.',
   cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status as parts come off the machine, and tick the checkmark once dimensions are verified.',
   vendors: 'Keep vendor contact info and links in one place. Parts reference vendors for ordering.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
@@ -204,7 +202,7 @@ const VIEW_HELP = {
   tasks: 'Kanban board: drag-free columns for To Do, In Progress, and Done. Filter by project or assignee.',
   history: 'A feed of every change: who did what, and when.',
   workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
-  spreadsheet: 'A dense, editable view of your data. Every chip is clickable — vendor, location, stock, material, machine, status — so you can fix values without leaving the sheet. Use the scope picker to switch between the master sheet and a per-subsystem sheet.',
+  spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, assigned, cost, vendor, location, and notes edit in place. Sort by any column, filter by subsystem or type, and toggle the condensed view for dense scanning.',
   sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
   search: 'Search across parts, projects, people, and tasks. Tip: press Ctrl/Cmd+K from anywhere.',
   settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
@@ -270,7 +268,7 @@ async function renderDashboard(container) {
           </a>
           <a class="gs-step" href="#projects" onclick="event.preventDefault();navigate('projects')">
             <div class="gs-step-num">3</div>
-            <div><div class="gs-step-title">Create a project</div><div class="gs-step-sub">Then build its BOM and assign tasks to the team.</div></div>
+            <div><div class="gs-step-title">Create a project</div><div class="gs-step-sub">Then fill its master spreadsheet and assign tasks to the team.</div></div>
           </a>
           <a class="gs-step" href="#settings" onclick="event.preventDefault();navigate('settings')">
             <div class="gs-step-num"><i class="fa-solid fa-flask" style="font-size:11px"></i></div>
@@ -716,12 +714,9 @@ window.App = {
               } else if (currentView === 'spreadsheet' && window.SpreadsheetModule) {
                 await SpreadsheetModule.loadData();
                 SpreadsheetModule.renderRows();
-              } else if (currentView === 'bom' && window.BomModule) {
-                await BomModule.loadData();
-                if (document.getElementById('bomProjectSelect')) {
-                  const selVal = document.getElementById('bomProjectSelect').value;
-                  if (selVal) BomModule.renderBomForProject(selVal);
-                }
+              } else if (currentView === 'cnc' && window.CncModule) {
+                await CncModule.loadData();
+                CncModule.renderList();
               } else if (currentView === 'dashboard') {
                 navigate('dashboard');
               }

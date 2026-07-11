@@ -1,5 +1,28 @@
 // people.js
+const PERSON_LEVELS = { '101': 'gray', '201': 'blue', 'Lead': 'purple', 'Mentor': 'amber' };
+const PERSON_SUBTEAMS = ['Build', 'Design', 'Programming'];
+const SUBTEAM_COLORS = { 'Build': 'amber', 'Design': 'cyan', 'Programming': 'green' };
+
 const PeopleModule = {
+  // Member status: explicit level if set, otherwise inferred from access role
+  levelOf(p) {
+    if (p.level) return p.level;
+    if (p.role === 'Mentor') return 'Mentor';
+    if (p.role === 'Lead') return 'Lead';
+    return '101';
+  },
+
+  levelBadge(p) {
+    const lvl = this.levelOf(p);
+    return `<span class="badge badge-${PERSON_LEVELS[lvl] || 'gray'}">${escapeHTML(lvl)}</span>`;
+  },
+
+  subteamChips(p) {
+    const subs = p.subteams || [];
+    if (!subs.length) return '';
+    return subs.map(s => `<span class="chip tint-${SUBTEAM_COLORS[s] || 'gray'}" style="font-size:10.5px"><i class="fa-solid ${s === 'Programming' ? 'fa-code' : s === 'Design' ? 'fa-compass-drafting' : 'fa-hammer'}" aria-hidden="true"></i>${escapeHTML(s)}</span>`).join(' ');
+  },
+
   async render(container) {
     this.container = container;
     this.container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading team members...</p></div>`;
@@ -21,11 +44,18 @@ const PeopleModule = {
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" id="peopleSearch" placeholder="Search people...">
           </div>
-          <select class="form-select" style="width:150px" id="peopleFilter">
-            <option value="all">All Roles</option>
-            <option value="Student">Student</option>
+          <select class="form-select" style="width:140px" id="peopleFilter">
+            <option value="all">All Statuses</option>
+            <option value="101">101</option>
+            <option value="201">201</option>
             <option value="Lead">Lead</option>
             <option value="Mentor">Mentor</option>
+          </select>
+          <select class="form-select" style="width:150px" id="subteamFilter">
+            <option value="all">All Subteams</option>
+            <option value="Build">Build</option>
+            <option value="Design">Design</option>
+            <option value="Programming">Programming</option>
           </select>
         </div>
         <div class="toolbar-right">
@@ -38,6 +68,7 @@ const PeopleModule = {
     document.getElementById('addPersonBtn').addEventListener('click', () => this.showAddModal());
     document.getElementById('peopleSearch').addEventListener('input', debounce(() => this.renderGrid(), 250));
     document.getElementById('peopleFilter').addEventListener('change', () => this.renderGrid());
+    document.getElementById('subteamFilter').addEventListener('change', () => this.renderGrid());
 
     this.renderGrid();
   },
@@ -47,8 +78,10 @@ const PeopleModule = {
     const q = document.getElementById('peopleSearch').value.toLowerCase();
     const filter = document.getElementById('peopleFilter').value;
 
+    const subteam = document.getElementById('subteamFilter').value;
     let filtered = this.people.filter(p => p.name.toLowerCase().includes(q));
-    if (filter !== 'all') filtered = filtered.filter(p => p.role === filter);
+    if (filter !== 'all') filtered = filtered.filter(p => PeopleModule.levelOf(p) === filter);
+    if (subteam !== 'all') filtered = filtered.filter(p => (p.subteams || []).includes(subteam));
 
     if (filtered.length === 0) {
       grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><i class="fa-solid fa-users"></i><h3>No team members found</h3><p>Add people to assign them tasks and tools.</p></div>`;
@@ -58,21 +91,21 @@ const PeopleModule = {
     grid.innerHTML = filtered.map(p => {
       const pTasks = this.tasks.filter(t => t.assigneeId === p.id && t.status !== 'done');
       const pTools = this.tools.filter(t => t.checkedOutBy === p.id);
-      const roleColors = { 'Mentor': 'amber', 'Lead': 'blue', 'Student': 'gray', 'Captain': 'purple', 'Member': 'gray' };
       const isPending = p.status === 'pending';
-      const isMentor = AuthModule && AuthModule.canPerform('approve_users');
+      const subChips = this.subteamChips(p);
 
       return `
         <div class="card" style="cursor:pointer; position:relative;" onclick="PeopleModule.showDetail('${p.id}')">
           ${isPending ? '<div style="position:absolute; top:12px; right:12px;"><span class="badge badge-amber">Pending</span></div>' : ''}
           <div class="card-body">
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3 mb-3">
               <div class="avatar" style="width:40px;height:40px;font-size:14px">${initials(p.name)}</div>
               <div>
                 <h3 style="font-size:15px;font-weight:600">${escapeHTML(p.name)}</h3>
-                <span class="badge badge-${roleColors[p.role] || 'gray'} mt-1">${escapeHTML(p.role || 'Member')}</span>
+                <div class="mt-1">${this.levelBadge(p)}</div>
               </div>
             </div>
+            ${subChips ? `<div class="flex gap-1 mb-3" style="flex-wrap:wrap">${subChips}</div>` : ''}
             <div class="text-xs text-muted mb-4 truncate"><i class="fa-solid fa-address-card"></i> ${escapeHTML(p.contact || 'No contact info')}</div>
             <div class="flex items-center justify-between text-xs text-muted pt-3 border-t" style="border-top: 1px solid var(--border)">
               <span>${pTasks.length} active tasks</span>
@@ -95,21 +128,40 @@ const PeopleModule = {
         </div>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Role</label>
+            <label class="form-label">Status</label>
+            <select class="form-select" id="personLevel">
+              ${Object.keys(PERSON_LEVELS).map(l => `<option value="${l}" ${this.levelOf(p) === l ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+            <div class="form-hint">101 = first-year, 201 = returning.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Access Role</label>
             <select class="form-select" id="personRole">
-              <option value="Student" ${p.role === 'Student' || p.role === 'Member' ? 'selected' : ''}>Student</option>
+              <option value="Student" ${p.role === 'Student' || p.role === 'Member' || !p.role ? 'selected' : ''}>Student</option>
               <option value="Lead" ${p.role === 'Lead' ? 'selected' : ''}>Lead</option>
               ${AuthModule && AuthModule.canPerform('edit_roles') ? `<option value="Mentor" ${p.role === 'Mentor' ? 'selected' : ''}>Mentor</option>` : ''}
             </select>
+            <div class="form-hint">Controls permissions in Orbito.</div>
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subteams</label>
+          <div class="flex gap-3" style="flex-wrap:wrap">
+            ${PERSON_SUBTEAMS.map(s => `
+              <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px">
+                <input type="checkbox" class="person-subteam-cb" value="${s}" ${(p.subteams || []).includes(s) ? 'checked' : ''} style="accent-color:var(--accent)"> ${s}
+              </label>`).join('')}
+          </div>
+        </div>
+        <div class="grid-2">
           <div class="form-group">
             <label class="form-label">PIN (Optional login)</label>
             <input type="password" class="form-input" id="personPin" value="${escapeHTML(p.pin || '')}" placeholder="4 digits">
           </div>
-        </div>
-        <div class="form-group mt-2">
-          <label class="form-label">Contact Info (Phone/Email)</label>
-          <input type="text" class="form-input" id="personContact" value="${escapeHTML(p.contact || '')}">
+          <div class="form-group">
+            <label class="form-label">Contact Info (Phone/Email)</label>
+            <input type="text" class="form-input" id="personContact" value="${escapeHTML(p.contact || '')}">
+          </div>
         </div>
       </form>
     `;
@@ -132,6 +184,8 @@ const PeopleModule = {
       id: id || undefined,
       name,
       role: document.getElementById('personRole').value,
+      level: document.getElementById('personLevel').value,
+      subteams: [...document.querySelectorAll('.person-subteam-cb:checked')].map(cb => cb.value),
       pin: document.getElementById('personPin').value,
       contact: document.getElementById('personContact').value.trim()
     };
@@ -167,7 +221,6 @@ const PeopleModule = {
     const p = this.currentPerson;
     const pTasks = this.tasks.filter(t => t.assigneeId === p.id);
     const pTools = this.tools.filter(t => t.checkedOutBy === p.id);
-    const roleColors = { 'Mentor': 'amber', 'Lead': 'blue', 'Student': 'gray', 'Captain': 'purple', 'Member': 'gray' };
 
     this.container.innerHTML = `
       <div class="mb-4">
@@ -177,7 +230,11 @@ const PeopleModule = {
             <div class="avatar" style="width:56px;height:56px;font-size:20px">${initials(p.name)}</div>
             <div>
               <h2 style="font-size:24px;font-weight:700">${escapeHTML(p.name)}</h2>
-              <span class="badge badge-${roleColors[p.role] || 'gray'} mt-1">${escapeHTML(p.role || 'Member')}</span>
+              <div class="flex items-center gap-2 mt-1" style="flex-wrap:wrap">
+                ${this.levelBadge(p)}
+                ${this.subteamChips(p)}
+                <span class="text-xs text-muted">Access: ${escapeHTML(p.role || 'Student')}</span>
+              </div>
             </div>
           </div>
           <div class="flex gap-2">
