@@ -6,6 +6,7 @@ const MODULES = {
   projects:  { title: 'Projects',  render: (c) => ProjectsModule.render(c) },
   parts:     { title: 'Parts & Inventory', render: (c) => PartsModule.render(c) },
   bom:       { title: 'Bill of Materials',  render: (c) => BomModule.render(c) },
+  cnc:       { title: 'CNC List', render: (c) => CncModule.render(c) },
   vendors:   { title: 'Vendors',   render: (c) => VendorsModule.render(c) },
   tools:     { title: 'Tools',     render: (c) => ToolsModule.render(c) },
   people:    { title: 'People',    render: (c) => PeopleModule.render(c) },
@@ -196,6 +197,7 @@ const VIEW_HELP = {
   projects: 'Projects hold subsystems (like Elevator or Arm), a BOM, and tasks. Each subsystem gets its own BOM and spreadsheet; the project rolls them up. Use Duplicate to reuse a season\'s structure as a template.',
   parts: 'Your inventory. Click a part name for details, drawings, and a sketch pad. Click a stock chip to quick-edit quantities, or use the route icon to get walked to the part\'s location.',
   bom: 'Pick a project or subsystem, then track every item from Not Started → Ordered → In Stock → Installed. Tap a status badge to advance it one step. Selecting a project shows all its subsystems rolled up. Filter by COTS vs In-house, and export to CSV for ordering.',
+  cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status as parts come off the machine, and tick the checkmark once dimensions are verified.',
   vendors: 'Keep vendor contact info and links in one place. Parts reference vendors for ordering.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
   people: 'Team roster with roles. Mentors approve new signups here.',
@@ -461,6 +463,13 @@ async function renderSettings(container) {
             </div>
             <button class="btn btn-secondary" id="loadSampleBtn"><i class="fa-solid fa-flask"></i> Load Sample</button>
           </div>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500">FRC example — 2026 robot</div>
+              <div class="text-sm text-muted"><strong>Replaces</strong> projects/parts with the 2026 master part-tracking sheet: 6 subsystems, 168 numbered parts.</div>
+            </div>
+            <button class="btn btn-secondary" id="loadFrcBtn"><i class="fa-solid fa-robot"></i> Load FRC Example</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -602,6 +611,22 @@ async function renderSettings(container) {
         navigate('dashboard');
       } catch (err) {
         toast('Failed to load sample data: ' + err.message, 'error');
+      }
+    }
+  });
+
+  document.getElementById('loadFrcBtn').addEventListener('click', async () => {
+    if (confirm('This will REPLACE existing projects, parts, and BOMs with the 2026 FRC example (6 subsystems, 168 parts). Continue?')) {
+      try {
+        toast('Loading FRC example…', 'info');
+        const res = await fetch('example_frc_2026.json');
+        const data = await res.json();
+        await DB.importAll(data);
+        toast('FRC example loaded!', 'success');
+        SpreadsheetModule.pendingScope = 'proj_2026robot';
+        navigate('spreadsheet');
+      } catch (err) {
+        toast('Failed to load FRC example: ' + err.message, 'error');
       }
     }
   });

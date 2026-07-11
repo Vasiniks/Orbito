@@ -1,6 +1,7 @@
 // spreadsheet.js — chip-oriented editable spreadsheet with Master / per-subsystem scopes
-const SS_MATERIALS = ['6061-T6 Aluminum', '7075 Aluminum', 'Polycarbonate', 'Delrin / Acetal', 'ABS', 'PLA', 'PETG', 'Steel', 'HDPE', 'Plywood', 'Carbon Fiber'];
+const SS_MATERIALS = ['1/16" Aluminum - Sheet', '1/8" Aluminum - Sheet', '3/16" Aluminum - Sheet', '1/4" Aluminum - Sheet', '1x1 Aluminum Boxtube', '1x2 Aluminum Boxtube', '1/2" Aluminum - Hex', '3/8" Aluminum - Rod', '1" Aluminum - Angle', '3mm Polycarbonate', '6mm Polycarbonate', 'UHMW', 'Delrin / Acetal', 'PLA', 'PETG', 'ABS', 'CF-Nylon'];
 const SS_MATERIAL_DATALIST = `<datalist id="ssMaterialList">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist>`;
+window.SS_MATERIALS = SS_MATERIALS;
 
 const SpreadsheetModule = {
   scope: 'all',        // 'all' | projectId (top-level project or subsystem)
@@ -172,8 +173,8 @@ const SpreadsheetModule = {
 
     let items = this.boms.filter(b => fam.includes(b.projectId));
     items = items.map(b => ({ b, part: this.parts.find(p => p.id === b.partId) }))
-      .filter(({ part }) => !q || (part && part.name.toLowerCase().includes(q)))
-      .sort((x, y) => (x.part?.name || '').localeCompare(y.part?.name || ''));
+      .filter(({ b, part }) => !q || (part && part.name.toLowerCase().includes(q)) || (b.partNumber || '').toLowerCase().includes(q))
+      .sort((x, y) => (x.b.partNumber || '￿').localeCompare(y.b.partNumber || '￿', undefined, { numeric: true }));
 
     document.getElementById('ssCount').textContent = `${items.length} items`;
 
@@ -187,6 +188,7 @@ const SpreadsheetModule = {
       <table class="spreadsheet-table" style="white-space:nowrap; width:max-content; min-width:100%;">
         <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 0 var(--border);">
           <tr>
+            <th>Part #</th>
             <th>Part</th>
             ${isParent ? '<th>Subsystem</th>' : ''}
             <th>Type</th>
@@ -194,36 +196,42 @@ const SpreadsheetModule = {
             <th>Machine</th>
             <th>Qty</th>
             <th>Stock</th>
+            <th>Assigned</th>
+            <th>✓</th>
             <th>Status</th>
-            <th>Line Total</th>
-            <th>Vendor</th>
+            <th>Comments</th>
           </tr>
         </thead>
         <tbody>
           ${items.map(({ b, part }) => {
-            const vendor = part ? this.vendors.find(v => v.id === part.vendorId) : null;
-            const cost = part ? (part.unitCost || 0) * b.qtyNeeded : 0;
-            const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP['not_started'];
-            const isDone = b.status === 'installed';
+            const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP[bomLadder(b)[0]];
+            const isDone = BOM_DONE_STATUSES.includes(b.status);
+            const isNotUsed = b.status === 'not_used';
             const inStock = part ? (part.inStock || 0) : 0;
-            const short = !isDone && inStock < b.qtyNeeded;
+            const short = !isDone && !isNotUsed && inStock < b.qtyNeeded;
             const critical = short && inStock === 0;
-            const rowCls = critical ? 'row-stock-low' : short ? 'row-stock-warn' : '';
+            const rowCls = (critical ? 'row-stock-low' : short ? 'row-stock-warn' : '') + (isNotUsed ? ' row-not-used' : '');
             const subProj = this.projects.find(p => p.id === b.projectId);
             const subLabel = b.projectId === this.scope ? 'Main' : (subProj?.name || '?');
             const eb = (f) => `SpreadsheetModule.editBomCell('${b.id}','${f}')`;
             return `
               <tr class="${rowCls}">
+                <td>${this.chip(b.partNumber, null, eb('partNumber'), 'Part number — click to edit')}</td>
                 <td>${part ? this.nameCell(part) : '<span class="text-muted">Unknown Part</span>'}</td>
                 ${isParent ? `<td>${this.chip(subLabel, 'fa-diagram-project', eb('projectId'), 'Move to another subsystem')}</td>` : ''}
-                <td><button class="badge badge-${b.type === 'inhouse' ? 'purple' : 'cyan'} bom-status-btn" onclick="SpreadsheetModule.toggleBomType('${b.id}')" title="Click to toggle COTS / In-house">${b.type === 'inhouse' ? 'In-house' : 'COTS'}</button></td>
+                <td>${getFabChip(b)}</td>
                 <td>${this.chip(b.material, 'fa-layer-group', eb('material'))}</td>
                 <td>${this.chip(b.process, 'fa-gears', eb('process'))}</td>
                 <td>${this.chip(String(b.qtyNeeded), null, eb('qtyNeeded'))}</td>
                 <td>${part ? getStockChip(inStock, b.qtyNeeded, part.id) : '—'}</td>
-                <td><button class="badge badge-${st.class} bom-status-btn" onclick="SpreadsheetModule.advanceBomStatus('${b.id}')" title="${isDone ? 'Installed — done!' : 'Click to advance status'}">${st.label}${isDone ? '' : ' <i class="fa-solid fa-angle-right" style="font-size:9px;opacity:0.7"></i>'}</button></td>
-                <td class="text-muted">${formatCurrency(cost)}</td>
-                <td>${part ? this.chip(vendor?.name, 'fa-store', `SpreadsheetModule.editPartCell('${part.id}','vendorId')`) : '—'}</td>
+                <td>${this.chip(b.assignee, 'fa-user', eb('assignee'))}</td>
+                <td>
+                  <button class="verify-chip ${b.verified ? 'on' : ''}" onclick="SpreadsheetModule.toggleVerified('${b.id}')" title="${b.verified ? 'Verified — click to unverify' : 'Not verified — click to verify'}" aria-label="Toggle verified">
+                    <i class="fa-solid ${b.verified ? 'fa-check' : 'fa-minus'}" aria-hidden="true"></i>
+                  </button>
+                </td>
+                <td><button class="badge badge-${st.class} bom-status-btn" onclick="SpreadsheetModule.advanceBomStatus('${b.id}')" title="${isDone ? 'Done!' : isNotUsed ? 'Marked not used' : 'Click to advance status'}">${st.label}${isDone || isNotUsed ? '' : ' <i class="fa-solid fa-angle-right" style="font-size:9px;opacity:0.7"></i>'}</button></td>
+                <td>${this.chip(b.comments ? (b.comments.length > 34 ? b.comments.slice(0, 32) + '…' : b.comments) : '', 'fa-comment', eb('comments'), b.comments || 'Add a comment')}</td>
               </tr>
             `;
           }).join('')}
@@ -341,8 +349,23 @@ const SpreadsheetModule = {
         apply = () => { item.material = document.getElementById('ssCellInput').value.trim(); };
         break;
       case 'process':
-        body = `<div class="form-group"><label class="form-label">Machine / Process</label><input type="text" class="form-input" id="ssCellInput" list="ssMachineListModal" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC Mill, 3D Print"><datalist id="ssMachineListModal">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist></div>`;
-        apply = () => { item.process = document.getElementById('ssCellInput').value.trim(); };
+        body = `<div class="form-group"><label class="form-label">Machine / Process</label><input type="text" class="form-input" id="ssCellInput" list="ssMachineListModal" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC Router, Lathe, Purchase"><datalist id="ssMachineListModal">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist><div class="form-hint">Sets the type chip: CNC, 3D Printed, Manufacture, or COTS (Purchase).</div></div>`;
+        apply = () => {
+          item.process = document.getElementById('ssCellInput').value.trim();
+          item.type = bomFabType(item) === 'cots' ? 'cots' : 'inhouse';
+        };
+        break;
+      case 'partNumber':
+        body = `<div class="form-group"><label class="form-label">Part Number</label><input type="text" class="form-input mono" id="ssCellInput" value="${escapeHTML(item.partNumber || '')}" placeholder="e.g. 100-001"></div>`;
+        apply = () => { item.partNumber = document.getElementById('ssCellInput').value.trim(); };
+        break;
+      case 'assignee':
+        body = `<div class="form-group"><label class="form-label">Assigned To</label><input type="text" class="form-input" id="ssCellInput" list="ssPeopleListModal" value="${escapeHTML(item.assignee || '')}" placeholder="Who's making it?"><datalist id="ssPeopleListModal">${this.people.filter(u => u.status === 'approved').map(u => `<option value="${escapeHTML(u.name)}"></option>`).join('')}</datalist></div>`;
+        apply = () => { item.assignee = document.getElementById('ssCellInput').value.trim(); };
+        break;
+      case 'comments':
+        body = `<div class="form-group"><label class="form-label">Comments</label><textarea class="form-textarea" id="ssCellInput" style="min-height:70px" placeholder="Tolerances, approvals, gotchas…">${escapeHTML(item.comments || '')}</textarea></div>`;
+        apply = () => { item.comments = document.getElementById('ssCellInput').value.trim(); };
         break;
       case 'projectId': {
         const proj = this.projects.find(p => p.id === item.projectId);
@@ -368,28 +391,36 @@ const SpreadsheetModule = {
     });
   },
 
-  async toggleBomType(itemId) {
+  async toggleVerified(itemId) {
     const item = this.boms.find(b => b.id === itemId);
     if (!item) return;
-    item.type = (item.type || 'cots') === 'cots' ? 'inhouse' : 'cots';
+    item.verified = !item.verified;
     try {
       await DB.put('bom_items', item);
       const part = this.parts.find(p => p.id === item.partId);
-      HistoryModule.log('update', 'bom_item', item.id, part?.name || 'Unknown Part', `Type → ${item.type === 'inhouse' ? 'In-house' : 'COTS'}`);
+      HistoryModule.log('update', 'bom_item', item.id, part?.name || 'Unknown Part', item.verified ? 'Verified' : 'Unverified');
       this.renderRows();
     } catch (err) {
-      toast('Error updating type', 'error');
+      toast('Error updating verified flag', 'error');
     }
   },
 
   async advanceBomStatus(itemId) {
     const item = this.boms.find(b => b.id === itemId);
     if (!item) return;
-    const idx = BOM_STATUS_ORDER.indexOf(item.status || 'not_started');
-    if (idx >= BOM_STATUS_ORDER.length - 1) {
-      return toast('Already installed — nice work!', 'info');
+    if (item.status === 'not_used') {
+      return toast('Marked "Not Used" — change it via the status chip in the BOM edit modal.', 'info');
     }
-    item.status = BOM_STATUS_ORDER[idx + 1];
+    const ladder = bomLadder(item);
+    let idx = ladder.indexOf(item.status);
+    if (idx === -1) {
+      const other = ladder === BOM_LADDERS.cots ? BOM_LADDERS.inhouse : BOM_LADDERS.cots;
+      idx = other.indexOf(item.status);
+    }
+    if (idx >= ladder.length - 1) {
+      return toast('Already done — nice work!', 'info');
+    }
+    item.status = ladder[idx + 1];
     try {
       await DB.put('bom_items', item);
       const part = this.parts.find(p => p.id === item.partId);
@@ -419,14 +450,15 @@ const SpreadsheetModule = {
     } else {
       const fam = this.scopeFamilyIds();
       const scopeName = this.projects.find(p => p.id === this.scope)?.name || 'system';
-      csv = 'Part Name,Subsystem,Type,Material,Machine,Qty Needed,In Stock,Status,Unit Cost,Line Total,Vendor\n';
-      this.boms.filter(b => fam.includes(b.projectId)).forEach(b => {
-        const part = this.parts.find(p => p.id === b.partId);
-        const sub = this.projects.find(p => p.id === b.projectId)?.name || '';
-        const vendor = part ? (this.vendors.find(v => v.id === part.vendorId)?.name || '') : '';
-        const cost = part ? (part.unitCost || 0) : 0;
-        csv += [part?.name || 'Unknown', sub, b.type === 'inhouse' ? 'In-house' : 'COTS', b.material || '', b.process || '', b.qtyNeeded, part?.inStock || 0, b.status, cost, cost * b.qtyNeeded, vendor].map(esc).join(',') + '\n';
-      });
+      csv = 'Part Number,Part Name,Subsystem,Type,Assigned To,Qty,In Stock,Material,Primary Machine,Verified,Status,Comments\n';
+      this.boms.filter(b => fam.includes(b.projectId))
+        .slice()
+        .sort((a, b) => (a.partNumber || '￿').localeCompare(b.partNumber || '￿', undefined, { numeric: true }))
+        .forEach(b => {
+          const part = this.parts.find(p => p.id === b.partId);
+          const sub = b.projectId === this.scope ? 'Main' : (this.projects.find(p => p.id === b.projectId)?.name || '');
+          csv += [b.partNumber || '', part?.name || 'Unknown', sub, BOM_FAB_TYPES[bomFabType(b)].label, b.assignee || '', b.qtyNeeded, part?.inStock || 0, b.material || '', b.process || '', b.verified ? 'TRUE' : 'FALSE', BOM_STATUS_MAP[b.status]?.label || b.status, b.comments || ''].map(esc).join(',') + '\n';
+        });
       filename = `orbito-${scopeName.replace(/\s+/g, '-').toLowerCase()}.csv`;
     }
 

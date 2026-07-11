@@ -124,13 +124,23 @@ const ProjectsModule = {
       return toast('Name is required', 'error');
     }
 
+    const parentId = document.getElementById('projParent').value || null;
     const proj = {
       name,
       description: document.getElementById('projDesc').value.trim(),
       status: document.getElementById('projStatus').value,
       deadline: document.getElementById('projDeadline').value ? new Date(document.getElementById('projDeadline').value).getTime() : null,
-      parentId: document.getElementById('projParent').value || null
+      parentId
     };
+
+    // Subsystems get a numeric code (100, 200, …) used to auto-number parts
+    if (parentId) {
+      const siblingCodes = this.projects
+        .filter(p => p.parentId === parentId)
+        .map(p => parseInt(p.code))
+        .filter(n => !isNaN(n));
+      proj.code = String((siblingCodes.length ? Math.max(...siblingCodes) : 0) + 100);
+    }
 
     try {
       await DB.add('projects', proj);
@@ -208,7 +218,7 @@ const ProjectsModule = {
               <div class="card">
                 <div class="card-body">
                   <div class="flex items-center justify-between mb-2">
-                    <h4 style="font-weight:600" class="truncate">${escapeHTML(sub.name)}</h4>
+                    <h4 style="font-weight:600" class="truncate">${sub.code ? `<span class="pn mono" style="margin-right:6px">${escapeHTML(sub.code)}</span>` : ''}${escapeHTML(sub.name)}</h4>
                     <span class="badge badge-gray">${sub.status || 'active'}</span>
                   </div>
                   <p class="text-sm text-muted truncate">${escapeHTML(sub.description || 'No description')}</p>
@@ -225,19 +235,15 @@ const ProjectsModule = {
       `;
     } else if (tab === 'bom') {
       const boms = this.tabData.boms;
-      const installed = boms.filter(b => b.status === 'installed').length;
-      const pct = boms.length ? Math.round((installed / boms.length) * 100) : 0;
-      const statusMap = {
-        'not_started': { label: 'Not Started', class: 'gray' },
-        'ordered':     { label: 'Ordered',     class: 'amber' },
-        'in_stock':    { label: 'In Stock',    class: 'blue' },
-        'installed':   { label: 'Installed',   class: 'green' }
-      };
+      const done = boms.filter(b => BOM_DONE_STATUSES.includes(b.status)).length;
+      const active = boms.filter(b => b.status !== 'not_used').length;
+      const pct = active ? Math.round((done / active) * 100) : 0;
+      const statusMap = BOM_STATUS_MAP;
       content.innerHTML = `
         ${boms.length > 0 ? `
           <div class="flex items-center gap-3 mb-4" style="flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
-              <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>${installed} of ${boms.length} installed</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
+              <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>${done} of ${active} done</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
               <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
             </div>
             <button class="btn btn-secondary btn-sm" onclick="BomModule.pendingProject='${this.currentProject.id}';navigate('bom')"><i class="fa-solid fa-clipboard-list"></i> Open Full BOM</button>
