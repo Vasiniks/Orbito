@@ -8,7 +8,7 @@ const ProjectsModule = {
 
   async loadData() {
     this.projects = await DB.getAll('projects');
-    this.tasks = await DB.getAll('tasks');
+    this.allBoms = await DB.getAll('bom_items');
   },
 
   renderView() {
@@ -47,9 +47,10 @@ const ProjectsModule = {
 
     grid.innerHTML = topProjects.map(p => {
       const subCount = this.projects.filter(sub => sub.parentId === p.id).length;
-      const projTasks = this.tasks.filter(t => t.projectId === p.id);
-      const doneTasks = projTasks.filter(t => t.status === 'done').length;
-      const progress = projTasks.length ? Math.round((doneTasks / projTasks.length) * 100) : 0;
+      const famIds = [p.id, ...this.projects.filter(sub => sub.parentId === p.id).map(s => s.id)];
+      const famBoms = this.allBoms.filter(b => famIds.includes(b.projectId) && b.status !== 'not_used');
+      const doneBoms = famBoms.filter(b => BOM_DONE_STATUSES.includes(b.status)).length;
+      const progress = famBoms.length ? Math.round((doneBoms / famBoms.length) * 100) : 0;
       
       return `
         <div class="card" style="cursor:pointer" onclick="ProjectsModule.showDetail('${p.id}')">
@@ -169,7 +170,6 @@ const ProjectsModule = {
     const famIds = [p.id, ...subs.map(s => s.id)];
     const boms = allBoms.filter(b => famIds.includes(b.projectId));
     const parts = await DB.getAll('parts');
-    const projTasks = this.tasks.filter(t => t.projectId === p.id);
 
     this.container.innerHTML = `
       <div class="mb-4">
@@ -189,13 +189,12 @@ const ProjectsModule = {
       <div class="tabs">
         <button class="tab active" onclick="ProjectsModule.switchTab('subs', this)">Subsystems (${subs.length})</button>
         <button class="tab" onclick="ProjectsModule.switchTab('bom', this)">Parts (${boms.length})</button>
-        <button class="tab" onclick="ProjectsModule.switchTab('tasks', this)">Tasks (${projTasks.length})</button>
       </div>
 
       <div id="tabContent"></div>
     `;
 
-    this.tabData = { subs, boms, parts, projTasks, allBoms };
+    this.tabData = { subs, boms, parts, allBoms };
     this.switchTab('subs', document.querySelector('.tab.active'));
   },
 
@@ -269,23 +268,6 @@ const ProjectsModule = {
           </table>
         </div>
       `;
-    } else if (tab === 'tasks') {
-      content.innerHTML = `
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Task</th><th>Priority</th><th>Status</th></tr></thead>
-            <tbody>
-              ${this.tabData.projTasks.map(t => `
-                <tr>
-                  <td>${escapeHTML(t.title)}</td>
-                  <td><span class="priority-dot priority-${t.priority}"></span> ${t.priority}</td>
-                  <td><span class="badge badge-gray">${t.status}</span></td>
-                </tr>
-              `).join('') || '<tr><td colspan="3" class="text-center">No tasks</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      `;
     }
   },
 
@@ -334,16 +316,6 @@ const ProjectsModule = {
       newB.projectId = subIdMap[b.projectId];
       newB.status = 'not_started'; // reset status
       await DB.add('bom_items', newB);
-    }
-
-    // Clone Tasks
-    const projTasks = this.tasks.filter(t => t.projectId === id);
-    for (const t of projTasks) {
-      const newT = { ...t };
-      delete newT.id;
-      newT.projectId = newId;
-      newT.status = 'todo'; // reset status
-      await DB.add('tasks', newT);
     }
 
     toast('Project duplicated successfully!', 'success');

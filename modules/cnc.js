@@ -107,7 +107,6 @@ const CncModule = {
               <th>Material</th>
               <th>Machine</th>
               <th class="text-right">Qty</th>
-              <th>Assigned</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -125,7 +124,6 @@ const CncModule = {
                   <td data-label="Material">${getMaterialChip(b.material)}</td>
                   <td data-label="Machine">${getProcessChip(b.process)}</td>
                   <td data-label="Qty" class="text-right">${b.qtyNeeded}</td>
-                  <td data-label="Assigned">${b.assignee ? `<span class="text-sm">${escapeHTML(b.assignee)}</span>` : '<span class="text-muted">—</span>'}</td>
                   <td data-label="Status">
                     <button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();CncModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button>
                   </td>
@@ -160,9 +158,9 @@ const CncModule = {
     const items = this.queueItems();
     const machineLabel = this.MACHINE_TABS.find(t => t.key === this.machineFilter)?.label || 'machines';
     const esc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
-    let csv = 'Part Number,Part Name,Subsystem,Material,Machine,Qty,Assigned To,Status\n';
+    let csv = 'Part Number,Part Name,Subsystem,Material,Machine,Qty,Status\n';
     items.forEach(({ b, part, proj }) => {
-      csv += [b.partNumber, part?.name || 'Unknown', proj?.name || '', b.material, b.process, b.qtyNeeded, b.assignee, BOM_STATUS_MAP[b.status]?.label || b.status].map(esc).join(',') + '\n';
+      csv += [b.partNumber, part?.name || 'Unknown', proj?.name || '', b.material, b.process, b.qtyNeeded, BOM_STATUS_MAP[b.status]?.label || b.status].map(esc).join(',') + '\n';
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

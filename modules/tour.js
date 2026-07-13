@@ -21,7 +21,7 @@ const TourModule = {
     {
       target: '[data-view="parts"]',
       title: 'Parts Library',
-      body: 'Your full inventory: photos, stock levels, locations, vendors, and attached drawings. Click any stock chip to quick-edit quantities.',
+      body: 'Your stock, plain and simple: photos, counts, locations, and containers. Use the +/− buttons for quick counts and the Containers button to manage bins.',
       openSidebar: true,
     },
     {

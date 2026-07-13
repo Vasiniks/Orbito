@@ -11,7 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link rel="preconnect" href="https://www.gstatic.com"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"/>
-    <link rel="stylesheet" href="style.css?v=17"/>
+    <link rel="icon" type="image/png" href="logo-mark.png"/>
+    <link rel="stylesheet" href="style.css?v=18"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
@@ -21,23 +22,23 @@
     <div class="landing">
       <div class="landing-nav">
         <div class="auth-brand" style="margin:0">
-          <div class="auth-brand-icon" aria-hidden="true">L</div>
+          <span class="brand-logo brand-logo-lg"><img src="logo-mark.png" alt="Team 1360"></span>
           <span class="auth-brand-name">Launchpad</span>
         </div>
       </div>
       <div class="landing-main">
         <div class="landing-copy">
           <p class="landing-eyebrow">Workspace manager for robotics teams</p>
-          <h1 class="landing-title">Every part, tool, and task. One clear place.</h1>
-          <p class="landing-sub">Track inventory, build BOMs, and keep the whole team on the same page — without the spreadsheet sprawl.</p>
+          <h1 class="landing-title">Every part, machine, and bin. One clear place.</h1>
+          <p class="landing-sub">Track stock, run the master spreadsheet, and keep the whole team on the same page — without the spreadsheet sprawl.</p>
           <ul class="landing-points">
             <li>
               <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
-              <div><strong>Inventory that scans at a glance</strong><span>Stock levels are color-coded, so low parts jump out.</span></div>
+              <div><strong>Stock that scans at a glance</strong><span>Color-coded against baseline, with one-tap +/− counts.</span></div>
             </li>
             <li>
-              <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
-              <div><strong>BOMs with real build workflow</strong><span>Machine, material, and vendor chips — from ordered to installed.</span></div>
+              <i class="fa-solid fa-table-cells" aria-hidden="true"></i>
+              <div><strong>A master spreadsheet with real build workflow</strong><span>Part numbers by subsystem, machine and material chips, status from design to assembled.</span></div>
             </li>
             <li>
               <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
@@ -59,7 +60,7 @@
   <div id="pendingOverlay" class="auth-overlay" style="display:none">
     <div class="auth-card">
       <div class="auth-brand">
-        <div class="auth-brand-icon" aria-hidden="true">L</div>
+        <span class="brand-logo brand-logo-lg"><img src="logo-mark.png" alt="Team 1360"></span>
         <span class="auth-brand-name">Launchpad</span>
       </div>
       <h1 class="auth-title">Almost there</h1>
@@ -74,7 +75,7 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <div class="sidebar-brand-icon">L</div>
+                <span class="brand-logo"><img src="logo-mark.png" alt="Team 1360"></span>
                 <span class="sidebar-brand-name">Launchpad</span>
             </div>
             <nav class="sidebar-nav">
@@ -102,19 +103,8 @@
                 <a class="nav-item" data-view="cnc" href="#cnc">
                     <i class="fa-solid fa-gears"></i> CNC List
                 </a>
-                <a class="nav-item" data-view="vendors" href="#vendors">
-                    <i class="fa-solid fa-store"></i> Vendors
-                </a>
                 <a class="nav-item" data-view="tools" href="#tools">
                     <i class="fa-solid fa-wrench"></i> Tools
-                </a>
-
-                <div class="sidebar-section-title">Team</div>
-                <a class="nav-item" data-view="people" href="#people">
-                    <i class="fa-solid fa-users"></i> People
-                </a>
-                <a class="nav-item" data-view="tasks" href="#tasks">
-                    <i class="fa-solid fa-list-check"></i> Tasks
                 </a>
                 <a class="nav-item" data-view="history" href="#history">
                     <i class="fa-solid fa-clock-rotate-left"></i> Activity
@@ -187,22 +177,19 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=17"></script>
-<script src="db.js?v=17"></script>
-<script src="modules/projects.js?v=17"></script>
-<script src="modules/parts.js?v=17"></script>
-<script src="modules/spreadsheet.js?v=17"></script>
-<script src="modules/cnc.js?v=17"></script>
-<script src="modules/vendors.js?v=17"></script>
-<script src="modules/tools.js?v=17"></script>
-<script src="modules/people.js?v=17"></script>
-<script src="modules/tasks.js?v=17"></script>
-<script src="modules/workspace.js?v=17"></script>
-<script src="modules/sketches.js?v=17"></script>
-<script src="modules/search.js?v=17"></script>
-<script src="modules/annotate.js?v=17"></script>
-<script src="modules/history.js?v=17"></script>
-<script src="modules/tour.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script type="module" src="auth.js?v=18"></script>
+<script src="db.js?v=18"></script>
+<script src="modules/projects.js?v=18"></script>
+<script src="modules/parts.js?v=18"></script>
+<script src="modules/spreadsheet.js?v=18"></script>
+<script src="modules/cnc.js?v=18"></script>
+<script src="modules/tools.js?v=18"></script>
+<script src="modules/workspace.js?v=18"></script>
+<script src="modules/sketches.js?v=18"></script>
+<script src="modules/search.js?v=18"></script>
+<script src="modules/annotate.js?v=18"></script>
+<script src="modules/history.js?v=18"></script>
+<script src="modules/tour.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

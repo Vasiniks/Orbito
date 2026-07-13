@@ -6,10 +6,7 @@ const MODULES = {
   projects:  { title: 'Projects',  render: (c) => ProjectsModule.render(c) },
   parts:     { title: 'Parts & Inventory', render: (c) => PartsModule.render(c) },
   cnc:       { title: 'CNC List', render: (c) => CncModule.render(c) },
-  vendors:   { title: 'Vendors',   render: (c) => VendorsModule.render(c) },
   tools:     { title: 'Tools',     render: (c) => ToolsModule.render(c) },
-  people:    { title: 'People',    render: (c) => PeopleModule.render(c) },
-  tasks:     { title: 'Tasks',     render: (c) => TasksModule.render(c) },
   history:   { title: 'Activity',  render: (c) => HistoryModule.render(c) },
   workspace: { title: 'Workspace Map', render: (c) => WorkspaceModule.render(c) },
   spreadsheet: { title: 'Master Spreadsheet', render: (c) => SpreadsheetModule.render(c) },
@@ -157,11 +154,6 @@ function getMaterialChip(material) {
   return `<span class="chip chip-material"><i class="fa-solid fa-layer-group"></i>${escapeHTML(material)}</span>`;
 }
 
-function getVendorChip(vendorName) {
-  if (!vendorName) return '<span class="text-muted">—</span>';
-  return `<span class="chip chip-vendor"><i class="fa-solid fa-store"></i>${escapeHTML(vendorName)}</span>`;
-}
-
 function formatCurrency(n) {
   if (n == null || isNaN(n)) return '—';
   return '$' + Number(n).toFixed(2);
@@ -217,21 +209,114 @@ function debounce(func, wait) {
   };
 }
 
+// ── Lightbox: click any photo to expand ──
+function showLightbox(src) {
+  if (!src) return;
+  document.getElementById('appLightbox')?.remove();
+  const ov = document.createElement('div');
+  ov.className = 'lightbox';
+  ov.id = 'appLightbox';
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = 'Expanded photo';
+  ov.appendChild(img);
+  ov.addEventListener('click', () => ov.remove());
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') ov.remove();
+    document.removeEventListener('keydown', esc);
+  });
+  document.body.appendChild(ov);
+}
+window.showLightbox = showLightbox;
+
+// ── Generic popover menu (import/export choices, etc.) ──
+function showPopMenu(anchor, items) {
+  document.getElementById('genericPopmenu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'popmenu';
+  menu.id = 'genericPopmenu';
+  menu.innerHTML = items.map((it, i) => it.sep
+    ? '<div class="popmenu-sep"></div>'
+    : `<button class="popmenu-item" data-i="${i}"><span>${it.icon ? `<i class="fa-solid ${escapeAttr(it.icon)}" style="width:16px;margin-right:6px"></i>` : ''}${escapeHTML(it.label)}</span></button>`
+  ).join('');
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = Math.max(8, Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4)) + 'px';
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+  menu.querySelectorAll('.popmenu-item').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.remove();
+      items[+b.dataset.i].onClick();
+    });
+  });
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+}
+window.showPopMenu = showPopMenu;
+
+// ── CSV / file helpers (import & export) ──
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQ = false;
+      } else field += ch;
+    } else if (ch === '"') {
+      inQ = true;
+    } else if (ch === ',') {
+      row.push(field); field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  row.push(field);
+  if (row.length > 1 || row[0] !== '') rows.push(row);
+  return rows;
+}
+window.parseCSV = parseCSV;
+
+function pickFile(accept) {
+  return new Promise((resolve) => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = accept;
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = () => { resolve(inp.files[0] || null); inp.remove(); };
+    inp.click();
+  });
+}
+window.pickFile = pickFile;
+
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+window.downloadFile = downloadFile;
+
 // ── Contextual Help ──
 const VIEW_HELP = {
-  dashboard: 'Your team at a glance: project counts, stock totals, recent tasks, and the roster. Numbers update live as the team works.',
-  projects: 'Projects hold subsystems (like Elevator or Arm) and tasks. The master spreadsheet tracks every subsystem\'s parts in one place. Use Duplicate to reuse a season\'s structure as a template.',
-  parts: 'Your inventory. Click a part name for details, drawings, and a sketch pad. Click a stock chip to quick-edit quantities, or use the route icon to get walked to the part\'s location.',
-  cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status as parts come off the machine, and tick the checkmark once dimensions are verified.',
-  vendors: 'Keep vendor contact info and links in one place. Parts reference vendors for ordering.',
+  dashboard: 'Your shop at a glance: project counts, stock health, and the machine queue. Numbers update live as the team works.',
+  projects: 'Projects hold subsystems (like Elevator or Arm). The master spreadsheet tracks every subsystem\'s parts in one place. Use Duplicate to reuse a season\'s structure as a template.',
+  parts: 'Pure stock tracking. Use the +/− buttons for quick counts, click a stock chip to edit stock and baseline, and filter by location or container. The Containers button manages bins with photos; the route icon walks you to a part.',
+  cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status to update it as parts come off the machine.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
-  people: 'Team roster with roles. Mentors approve new signups here.',
-  tasks: 'Kanban board: drag-free columns for To Do, In Progress, and Done. Filter by project or assignee.',
   history: 'A feed of every change: who did what, and when.',
   workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
-  spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, assigned, cost, vendor, location, and notes edit in place. Sort by any column, filter by subsystem or type, and toggle the condensed view for dense scanning.',
+  spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, cost, location, and notes edit in place. The Data menu imports/exports CSV and JSON and auto-numbers parts missing an ID.',
   sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
-  search: 'Search across parts, projects, people, and tasks. Tip: press Ctrl/Cmd+K from anywhere.',
+  search: 'Search across parts and projects. Tip: press Ctrl/Cmd+K from anywhere.',
   settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
 };
 
@@ -260,14 +345,12 @@ function showHelpModal() {
 
 // ── Dashboard ──
 async function renderDashboard(container) {
-  const [projects, parts, tools, people, tasks, vendors, locations, sessions] = await Promise.all([
+  const [projects, parts, tools, locations, boms, sessions] = await Promise.all([
     DB.getAll('projects'),
     DB.getAll('parts'),
     DB.getAll('tools'),
-    DB.getAll('users'),
-    DB.getAll('tasks'),
-    DB.getAll('vendors'),
     DB.getAll('locations'),
+    DB.getAll('bom_items'),
     // `sessions` was added in IndexedDB v2; swallow failure on legacy DBs.
     DB.getAll('sessions').catch(() => []),
   ]);
@@ -282,12 +365,16 @@ async function renderDashboard(container) {
     .slice(0, 5);
 
   const topProjects = projects.filter(p => !p.parentId);
-  const todoTasks = tasks.filter(t => t.status === 'todo').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'inprogress').length;
-  const doneTasks = tasks.filter(t => t.status === 'done').length;
   const totalInStock = parts.reduce((s, p) => s + (p.inStock || 0), 0);
-  const totalNeeded = parts.reduce((s, p) => s + (p.needed || 0), 0);
+  const lowParts = parts
+    .filter(p => (p.needed || 0) > 0 && (p.inStock || 0) < p.needed)
+    .sort((a, b) => ((a.inStock || 0) / a.needed) - ((b.inStock || 0) / b.needed));
   const checkedOut = tools.filter(t => t.checkedOutBy).length;
+  const cncQueue = boms.filter(b => {
+    const proc = (b.process || '').toLowerCase();
+    return (proc.includes('cnc') || proc.includes('router')) && !BOM_DONE_STATUSES.includes(b.status) && b.status !== 'not_used';
+  }).length;
+  const containerCount = locations.reduce((s, l) => s + (l.containers || []).length, 0);
 
   const isEmpty = parts.length === 0 && projects.length === 0 && tools.length === 0;
   const gettingStarted = isEmpty ? `
@@ -306,7 +393,7 @@ async function renderDashboard(container) {
           </a>
           <a class="gs-step" href="#projects" onclick="event.preventDefault();navigate('projects')">
             <div class="gs-step-num">3</div>
-            <div><div class="gs-step-title">Create a project</div><div class="gs-step-sub">Then fill its master spreadsheet and assign tasks to the team.</div></div>
+            <div><div class="gs-step-title">Create a project</div><div class="gs-step-sub">Then fill its master spreadsheet with the parts each subsystem needs.</div></div>
           </a>
           <a class="gs-step" href="#settings" onclick="event.preventDefault();navigate('settings')">
             <div class="gs-step-num"><i class="fa-solid fa-flask" style="font-size:11px"></i></div>
@@ -331,7 +418,13 @@ async function renderDashboard(container) {
         <div class="stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-screwdriver-wrench"></i></div>
         <div class="stat-label">Parts</div>
         <div class="stat-value">${parts.length}</div>
-        <div class="stat-sub">${totalInStock} in stock · ${totalNeeded} needed</div>
+        <div class="stat-sub">${totalInStock} in stock · ${lowParts.length} below baseline</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-icon" style="background:var(--purple-dim);color:var(--purple)"><i class="fa-solid fa-gears"></i></div>
+        <div class="stat-label">CNC Queue</div>
+        <div class="stat-value">${cncQueue}</div>
+        <div class="stat-sub">parts waiting on the machine</div>
       </div>
       <div class="card stat-card">
         <div class="stat-icon" style="background:var(--green-dim);color:var(--green)"><i class="fa-solid fa-wrench"></i></div>
@@ -339,44 +432,21 @@ async function renderDashboard(container) {
         <div class="stat-value">${tools.length}</div>
         <div class="stat-sub">${checkedOut} checked out</div>
       </div>
-      <div class="card stat-card">
-        <div class="stat-icon" style="background:var(--purple-dim);color:var(--purple)"><i class="fa-solid fa-list-check"></i></div>
-        <div class="stat-label">Tasks</div>
-        <div class="stat-value">${tasks.length}</div>
-        <div class="stat-sub">${todoTasks} to do · ${inProgressTasks} in progress · ${doneTasks} done</div>
-      </div>
     </div>
 
-    <div class="grid-3" style="margin-top:20px">
-      <!-- Recent tasks -->
+    <div class="grid-2" style="margin-top:20px">
+      <!-- Low stock -->
       <div class="card">
-        <div class="card-header"><h3>Recent Tasks</h3></div>
-        <div class="card-body" style="padding:0">
-          ${tasks.length === 0 ? '<div class="empty-state" style="padding:30px"><p>No tasks yet</p></div>' :
-            tasks.sort((a,b) => (b.updatedAt||0)-(a.updatedAt||0)).slice(0,5).map(t => `
-              <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-                <div>
-                  <div style="font-size:13px;font-weight:500">${escapeHTML(t.title)}</div>
-                  <div style="font-size:11px;color:var(--text-3);margin-top:2px">${formatDate(t.updatedAt)}</div>
-                </div>
-                <span class="badge badge-${t.status==='done'?'green':t.status==='inprogress'?'amber':'gray'}">${t.status==='inprogress'?'In Progress':t.status==='done'?'Done':'To Do'}</span>
-              </div>
-            `).join('')}
+        <div class="card-header">
+          <h3>Low Stock</h3>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('parts')">Parts Library <i class="fa-solid fa-arrow-right" style="font-size:10px"></i></button>
         </div>
-      </div>
-
-      <!-- Team -->
-      <div class="card">
-        <div class="card-header"><h3>Team (${people.length})</h3></div>
         <div class="card-body" style="padding:0">
-          ${people.length === 0 ? '<div class="empty-state" style="padding:30px"><p>No team members yet</p></div>' :
-            people.slice(0,6).map(p => `
-              <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-                <div class="avatar">${initials(p.name)}</div>
-                <div>
-                  <div style="font-size:13px;font-weight:500">${escapeHTML(p.name)}</div>
-                  <div style="font-size:11px;color:var(--text-3)">${escapeHTML(p.role || 'Member')}</div>
-                </div>
+          ${lowParts.length === 0 ? '<div class="empty-state" style="padding:30px"><p>Everything is at or above baseline 🎉</p></div>' :
+            lowParts.slice(0, 6).map(p => `
+              <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <div class="truncate" style="font-size:13px;font-weight:500">${escapeHTML(p.name)}</div>
+                ${getStockChip(p.inStock || 0, p.needed || 0, p.id)}
               </div>
             `).join('')}
         </div>
@@ -410,9 +480,9 @@ async function renderDashboard(container) {
       <div class="card-header"><h3>Quick Stats</h3></div>
       <div class="card-body">
         <div class="grid-3">
-          <div><span style="color:var(--text-3);font-size:12px">Vendors</span><div style="font-size:20px;font-weight:600;margin-top:2px">${vendors.length}</div></div>
-          <div><span style="color:var(--text-3);font-size:12px">Locations</span><div style="font-size:20px;font-weight:600;margin-top:2px">${locations.length}</div></div>
-          <div><span style="color:var(--text-3);font-size:12px">People</span><div style="font-size:20px;font-weight:600;margin-top:2px">${people.length}</div></div>
+          <div><span style="color:var(--text-3);font-size:12px">Zones</span><div style="font-size:20px;font-weight:600;margin-top:2px">${locations.length}</div></div>
+          <div><span style="color:var(--text-3);font-size:12px">Containers</span><div style="font-size:20px;font-weight:600;margin-top:2px">${containerCount}</div></div>
+          <div><span style="color:var(--text-3);font-size:12px">Tracked Items</span><div style="font-size:20px;font-weight:600;margin-top:2px">${boms.length}</div></div>
         </div>
       </div>
     </div>
@@ -450,6 +520,10 @@ async function renderSettings(container) {
             <button class="btn btn-secondary" onclick="AuthModule.signOut()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</button>
           </div>
         </div>
+      </div>
+      <div class="card" style="margin-bottom:16px" id="teamAccessCard" hidden>
+        <div class="card-header"><h3>Team Access</h3></div>
+        <div class="card-body" id="teamAccessBody"></div>
       </div>
       <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Appearance</h3></div>
@@ -569,6 +643,43 @@ async function renderSettings(container) {
       </div>
     </div>
   `;
+
+  // Team access: mentors approve new sign-ups here
+  if (AuthModule?.canPerform && AuthModule.canPerform('approve_users')) {
+    try {
+      const users = await DB.getAll('users');
+      const pending = users.filter(u => u.status === 'pending');
+      const approved = users.filter(u => u.status === 'approved');
+      const card = document.getElementById('teamAccessCard');
+      const body = document.getElementById('teamAccessBody');
+      card.hidden = false;
+      body.innerHTML = `
+        <p class="text-sm text-muted" style="margin-bottom:${pending.length ? '12px' : '0'}">${approved.length} approved account${approved.length === 1 ? '' : 's'} · ${pending.length} waiting for approval.</p>
+        ${pending.map(u => `
+          <div class="flex items-center justify-between" style="padding:8px 0;border-top:1px solid var(--border);gap:12px">
+            <div class="truncate">
+              <div style="font-weight:500;font-size:13.5px">${escapeHTML(u.name || 'Unknown')}</div>
+              <div class="text-xs text-muted truncate">${escapeHTML(u.email || '')}</div>
+            </div>
+            <button class="btn btn-primary btn-sm approve-user-btn" data-uid="${escapeAttr(u.id)}"><i class="fa-solid fa-check"></i> Approve</button>
+          </div>
+        `).join('')}
+      `;
+      body.querySelectorAll('.approve-user-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const u = users.find(x => x.id === btn.dataset.uid);
+          if (!u || !confirm(`Approve ${u.name || 'this user'}? They will get access to the workspace.`)) return;
+          u.status = 'approved';
+          await DB.put('users', u);
+          HistoryModule.log('approve', 'user', u.id, u.name, 'User approved for access');
+          toast('User approved!', 'success');
+          renderSettings(container);
+        });
+      });
+    } catch (e) {
+      console.error('Team access card failed:', e);
+    }
+  }
 
   document.getElementById('themeSelect').value = document.documentElement.getAttribute('data-theme') || 'dark';
   document.getElementById('themeSelect').addEventListener('change', (e) => {
@@ -782,7 +893,7 @@ window.App = {
                   <input type="number" id="quickInStock" class="form-input" value="${part.inStock || 0}" min="0">
                 </div>
                 <div>
-                  <label class="form-label">Needed</label>
+                  <label class="form-label">Baseline Parts</label>
                   <input type="number" id="quickNeeded" class="form-input" value="${part.needed || 0}" min="0">
                 </div>
               </div>
@@ -1013,10 +1124,6 @@ window.showQuickAddSketchModal = showQuickAddSketchModal;
             <i class="fa-solid fa-screwdriver-wrench text-blue" aria-hidden="true"></i>
             <span>Part</span>
           </button>
-          <button class="qa-tile" onclick="closeModal();navigate('tasks').then(()=>document.getElementById('addTaskBtn').click())">
-            <i class="fa-solid fa-list-check text-purple" aria-hidden="true"></i>
-            <span>Task</span>
-          </button>
           <button class="qa-tile" onclick="closeModal();navigate('projects').then(()=>document.getElementById('addProjectBtn').click())">
             <i class="fa-solid fa-folder-plus text-amber" aria-hidden="true"></i>
             <span>Project</span>
@@ -1055,15 +1162,13 @@ window.showQuickAddSketchModal = showQuickAddSketchModal;
       const q = e.target.value.toLowerCase().trim();
       if (!q) { cmdResults.innerHTML = ''; return; }
       
-      const [parts, projects, people, tasks] = await Promise.all([
-        DB.getAll('parts'), DB.getAll('projects'), DB.getAll('users'), DB.getAll('tasks')
+      const [parts, projects] = await Promise.all([
+        DB.getAll('parts'), DB.getAll('projects')
       ]);
 
       const results = [];
-      parts.filter(p => p.name.toLowerCase().includes(q)).forEach(p => results.push({ type: 'Part', icon: 'fa-screwdriver-wrench', name: p.name, action: () => { navigate('parts').then(()=>PartsModule.showAddModal(p.id)); } }));
+      parts.filter(p => p.name.toLowerCase().includes(q)).forEach(p => results.push({ type: 'Part', icon: 'fa-screwdriver-wrench', name: p.name, action: () => { navigate('parts').then(()=>PartsModule.showPartDetail(p.id)); } }));
       projects.filter(p => p.name.toLowerCase().includes(q)).forEach(p => results.push({ type: 'Project', icon: 'fa-folder', name: p.name, action: () => { navigate('projects').then(()=>ProjectsModule.showDetail(p.id)); } }));
-      people.filter(p => p.name.toLowerCase().includes(q)).forEach(p => results.push({ type: 'Person', icon: 'fa-user', name: p.name, action: () => { navigate('people').then(()=>PeopleModule.showDetail(p.id)); } }));
-      tasks.filter(t => t.title.toLowerCase().includes(q)).forEach(t => results.push({ type: 'Task', icon: 'fa-check', name: t.title, action: () => { navigate('tasks').then(()=>TasksModule.showAddModal(t.id)); } }));
 
       if (results.length === 0) {
         cmdResults.innerHTML = '<div class="text-muted text-center" style="padding:20px">No results found</div>';

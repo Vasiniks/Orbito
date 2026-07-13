@@ -6,7 +6,7 @@ const SearchModule = {
       <div class="global-search-wrap">
         <div class="global-search-head">
           <h2>Global Search</h2>
-          <p>Search across parts, projects, tasks, and people.</p>
+          <p>Search across parts and projects.</p>
         </div>
 
         <div class="search-box">
@@ -25,17 +25,13 @@ const SearchModule = {
     this.searchInput.addEventListener('input', debounce(() => this.performSearch(), 250));
 
     // Load all data async
-    this.data = { parts: [], projects: [], users: [], tasks: [] };
+    this.data = { parts: [], projects: [] };
     Promise.all([
       DB.getAll('parts'),
-      DB.getAll('projects'),
-      DB.getAll('users'),
-      DB.getAll('tasks')
-    ]).then(([parts, projects, users, tasks]) => {
+      DB.getAll('projects')
+    ]).then(([parts, projects]) => {
       this.data.parts = parts;
       this.data.projects = projects;
-      this.data.users = users;
-      this.data.tasks = tasks;
       this.searchInput.focus();
     });
   },
@@ -68,28 +64,6 @@ const SearchModule = {
         title: p.name,
         subtitle: p.status || 'Active',
         action: () => { navigate('projects').then(() => ProjectsModule.showDetail(p.id)); }
-      });
-    });
-
-    this.data.tasks.filter(t => t.title.toLowerCase().includes(q)).forEach(t => {
-      results.push({
-        type: 'Task',
-        icon: 'fa-check',
-        color: 'var(--purple)',
-        title: t.title,
-        subtitle: t.status,
-        action: () => { navigate('tasks').then(() => TasksModule.showAddModal(t.id)); }
-      });
-    });
-
-    this.data.users.filter(u => u.name.toLowerCase().includes(q) || (u.role && u.role.toLowerCase().includes(q))).forEach(u => {
-      results.push({
-        type: 'Person',
-        icon: 'fa-user',
-        color: 'var(--green)',
-        title: u.name,
-        subtitle: u.role || 'Member',
-        action: () => { navigate('people').then(() => PeopleModule.showDetail(u.id)); }
       });
     });
 

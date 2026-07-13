@@ -147,11 +147,9 @@ const SpreadsheetModule = {
   },
 
   async loadData() {
-    [this.parts, this.vendors, this.locations, this.people, this.projects, this.boms] = await Promise.all([
+    [this.parts, this.locations, this.projects, this.boms] = await Promise.all([
       DB.getAll('parts'),
-      DB.getAll('vendors'),
       DB.getAll('locations'),
-      DB.getAll('users'),
       DB.getAll('projects'),
       DB.getAll('bom_items')
     ]);
@@ -203,7 +201,7 @@ const SpreadsheetModule = {
           <button class="btn-icon ${this.condensed ? 'active-toggle' : ''}" id="ssCondensedBtn" title="${this.condensed ? 'Comfortable rows' : 'Condensed rows'}" aria-label="Toggle condensed view">
             <i class="fa-solid ${this.condensed ? 'fa-table-list' : 'fa-bars-staggered'}" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-secondary btn-sm" onclick="SpreadsheetModule.exportCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+          <button class="btn btn-secondary btn-sm" id="ssDataBtn"><i class="fa-solid fa-file-arrow-down"></i> Data</button>
           <button class="btn btn-primary btn-sm" onclick="SpreadsheetModule.showAddModal()"><i class="fa-solid fa-plus"></i> Add Item</button>
         </div>
       </div>
@@ -222,6 +220,17 @@ const SpreadsheetModule = {
       this.condensed = !this.condensed;
       localStorage.setItem('launchpad-ss-condensed', this.condensed ? '1' : '0');
       this.renderView();
+    });
+    document.getElementById('ssDataBtn').addEventListener('click', (e) => {
+      showPopMenu(e.target.closest('button'), [
+        { label: 'Export CSV', icon: 'fa-file-csv', onClick: () => this.exportCSV() },
+        { label: 'Export JSON', icon: 'fa-file-code', onClick: () => this.exportJSON() },
+        { sep: true },
+        { label: 'Import CSV', icon: 'fa-file-import', onClick: () => this.importFile('csv') },
+        { label: 'Import JSON', icon: 'fa-file-import', onClick: () => this.importFile('json') },
+        { sep: true },
+        { label: 'Auto-number missing part #s', icon: 'fa-hashtag', onClick: () => this.autoNumberMissing() },
+      ]);
     });
     this.renderRows();
   },
@@ -254,9 +263,7 @@ const SpreadsheetModule = {
       case 'machine': return (b.process || '￿').toLowerCase();
       case 'qty': return b.qtyNeeded || 0;
       case 'stock': return part?.inStock || 0;
-      case 'assigned': return (b.assignee || '￿').toLowerCase();
       case 'cost': return part?.unitCost || 0;
-      case 'vendor': return (this.vendors.find(v => v.id === part?.vendorId)?.name || '￿').toLowerCase();
       case 'location': return (this.locations.find(l => l.id === part?.locationId)?.name || '￿').toLowerCase();
       default: return 0;
     }
@@ -383,7 +390,7 @@ const SpreadsheetModule = {
 
     const th = (field, label, cls = '') => `<th class="${cls}" style="cursor:pointer" onclick="SpreadsheetModule.setSort('${field}')">${label} ${this.sortIcon(field)}</th>`;
     const groupDividers = this.sortField === 'default' && this.subFilter === 'all';
-    const COLS = 14;
+    const COLS = 12;
 
     let lastGroup = null;
     const bodyHTML = rows.map((row) => {
@@ -407,7 +414,6 @@ const SpreadsheetModule = {
       const critical = short && inStock === 0;
       const rowCls = (critical ? 'row-stock-low' : short ? 'row-stock-warn' : '') + (isNotUsed ? ' row-not-used' : '');
       const color = isMain ? 'gray' : subsystemColor(proj);
-      const vendor = part ? this.vendors.find(v => v.id === part.vendorId) : null;
       const loc = part ? this.locations.find(l => l.id === part.locationId) : null;
       const eb = (f) => `SpreadsheetModule.editBomCell('${b.id}','${f}')`;
       const ep = (f) => part ? `SpreadsheetModule.editPartCell('${part.id}','${f}')` : '';
@@ -423,9 +429,7 @@ const SpreadsheetModule = {
           <td data-label="Machine">${this.chip(b.process, 'fa-gears', eb('process'))}</td>
           <td data-label="Qty">${this.chip(String(b.qtyNeeded), null, eb('qtyNeeded'))}</td>
           <td data-label="Stock">${part ? getStockChip(inStock, b.qtyNeeded, part.id) : '—'}</td>
-          <td data-label="Assigned">${this.chip(b.assignee, 'fa-user', eb('assignee'))}</td>
           <td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>
-          <td data-label="Vendor">${part ? this.chip(vendor?.name, 'fa-store', ep('vendorId')) : '—'}</td>
           <td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', ep('locationId')) : '—'}</td>
           <td data-label="Notes" class="text-right">
             <div class="flex items-center justify-end gap-1">
@@ -451,9 +455,7 @@ const SpreadsheetModule = {
             ${th('machine', 'Machine')}
             ${th('qty', 'Qty')}
             ${th('stock', 'Stock')}
-            ${th('assigned', 'Assigned')}
             ${th('cost', 'Cost')}
-            ${th('vendor', 'Vendor')}
             ${th('location', 'Location')}
             <th class="text-right">Notes</th>
           </tr>
@@ -535,10 +537,6 @@ const SpreadsheetModule = {
         body = `<div class="form-group"><label class="form-label">Unit Cost ($)</label><input type="number" step="0.01" min="0" class="form-input" id="ssCellInput" value="${p.unitCost || ''}"></div>`;
         apply = () => { p.unitCost = parseFloat(document.getElementById('ssCellInput').value) || 0; };
         break;
-      case 'vendorId':
-        body = `<div class="form-group"><label class="form-label">Vendor</label>${selectHTML(this.vendors.map(v => ({ value: v.id, label: v.name })), p.vendorId)}</div>`;
-        apply = () => { p.vendorId = document.getElementById('ssCellInput').value || null; };
-        break;
       case 'locationId':
         body = `<div class="form-group"><label class="form-label">Location</label>${selectHTML(this.locations.map(l => ({ value: l.id, label: l.name })), p.locationId)}</div><p class="form-hint">Changing location clears the container.</p>`;
         apply = () => {
@@ -588,10 +586,6 @@ const SpreadsheetModule = {
         body = `<div class="form-group"><label class="form-label">Part Number</label><input type="text" class="form-input mono" id="ssCellInput" value="${escapeHTML(item.partNumber || '')}" placeholder="e.g. 100-001"></div>`;
         apply = () => { item.partNumber = document.getElementById('ssCellInput').value.trim(); };
         break;
-      case 'assignee':
-        body = `<div class="form-group"><label class="form-label">Assigned To</label><input type="text" class="form-input" id="ssCellInput" list="ssPeopleListModal" value="${escapeHTML(item.assignee || '')}" placeholder="Who's making it?"><datalist id="ssPeopleListModal">${this.people.filter(u => u.status === 'approved').map(u => `<option value="${escapeHTML(u.name)}"></option>`).join('')}</datalist></div>`;
-        apply = () => { item.assignee = document.getElementById('ssCellInput').value.trim(); };
-        break;
       case 'comments':
         body = `<div class="form-group"><label class="form-label">Notes / Comments</label><textarea class="form-textarea" id="ssCellInput" style="min-height:70px" placeholder="Tolerances, approvals, gotchas…">${escapeHTML(item.comments || '')}</textarea></div>`;
         apply = () => { item.comments = document.getElementById('ssCellInput').value.trim(); };
@@ -619,11 +613,6 @@ const SpreadsheetModule = {
   },
 
   // ── add / edit / delete items ──
-  peopleDatalist(id) {
-    const names = this.people.filter(u => u.status === 'approved').map(u => u.name);
-    return `<datalist id="${id}">${names.map(n => `<option value="${escapeHTML(n)}"></option>`).join('')}</datalist>`;
-  },
-
   statusOptions(selected) {
     return `
       <optgroup label="Fabricated">
@@ -671,17 +660,10 @@ const SpreadsheetModule = {
           <datalist id="ssAddMachineList">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist>
         </div>
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="form-label">Material <span class="text-muted">(optional)</span></label>
-          <input type="text" class="form-input" id="ssAddMaterial" list="ssAddMaterialList" placeholder="e.g. 1/8&quot; Aluminum - Sheet">
-          <datalist id="ssAddMaterialList">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Assigned To <span class="text-muted">(optional)</span></label>
-          <input type="text" class="form-input" id="ssAddAssignee" list="ssAddPeopleList" placeholder="Who's making it?">
-          ${this.peopleDatalist('ssAddPeopleList')}
-        </div>
+      <div class="form-group">
+        <label class="form-label">Material <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-input" id="ssAddMaterial" list="ssAddMaterialList" placeholder="e.g. 1/8&quot; Aluminum - Sheet">
+        <datalist id="ssAddMaterialList">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist>
       </div>
     `;
     openModal('Add Item', body, `
@@ -726,7 +708,6 @@ const SpreadsheetModule = {
         material: document.getElementById('ssAddMaterial').value.trim(),
         process,
         partNumber: document.getElementById('ssAddPartNumber').value.trim() || this.nextPartNumber(targetProjectId),
-        assignee: document.getElementById('ssAddAssignee').value.trim(),
         comments: ''
       });
       HistoryModule.log('create', 'bom_item', newId || 'new', name);
@@ -789,11 +770,6 @@ const SpreadsheetModule = {
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Assigned To</label>
-        <input type="text" class="form-input" id="editBomAssignee" list="editBomPeopleList" value="${escapeHTML(item.assignee || '')}">
-        ${this.peopleDatalist('editBomPeopleList')}
-      </div>
-      <div class="form-group">
         <label class="form-label">Notes / Comments</label>
         <textarea class="form-textarea" id="editBomComments" style="min-height:60px" placeholder="Tolerances, approvals, gotchas…">${escapeHTML(item.comments || '')}</textarea>
       </div>
@@ -813,7 +789,6 @@ const SpreadsheetModule = {
     item.status = document.getElementById('editBomStatus').value;
     item.material = document.getElementById('editBomMaterial').value.trim();
     item.process = document.getElementById('editBomProcess').value.trim();
-    item.assignee = document.getElementById('editBomAssignee').value.trim();
     item.comments = document.getElementById('editBomComments').value.trim();
     item.type = bomFabType(item) === 'cots' ? 'cots' : 'inhouse';
 
@@ -842,30 +817,183 @@ const SpreadsheetModule = {
     this.renderRows();
   },
 
-  // ── export ──
-  exportCSV() {
-    const rows = this.filteredItems();
+  // ── export / import / auto-number ──
+  exportRows() {
+    return this.filteredItems().map(({ b, part, proj }) => ({
+      status: BOM_STATUS_MAP[b.status]?.label || b.status,
+      partNumber: b.partNumber || '',
+      name: part?.name || 'Unknown',
+      subsystem: b.projectId === this.scope ? 'Main' : (proj?.name || ''),
+      type: BOM_FAB_TYPES[bomFabType(b)].label,
+      material: b.material || '',
+      machine: b.process || '',
+      qty: b.qtyNeeded,
+      inStock: part?.inStock || 0,
+      unitCost: part?.unitCost || 0,
+      location: part ? (this.locations.find(l => l.id === part.locationId)?.name || '') : '',
+      notes: b.comments || ''
+    }));
+  },
+
+  scopeFileName(ext) {
     const scopeName = this.projects.find(p => p.id === this.scope)?.name || 'project';
+    return `${scopeName.replace(/\s+/g, '-').toLowerCase()}-master-spreadsheet.${ext}`;
+  },
+
+  exportCSV() {
     const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-    let csv = 'Status,Part Number,Part Name,Subsystem,Type,Material,Machine,Qty,In Stock,Assigned To,Unit Cost,Vendor,Location,Notes\n';
-    rows.forEach(({ b, part, proj }) => {
-      const sub = b.projectId === this.scope ? 'Main' : (proj?.name || '');
-      const vendor = part ? (this.vendors.find(v => v.id === part.vendorId)?.name || '') : '';
-      const loc = part ? (this.locations.find(l => l.id === part.locationId)?.name || '') : '';
-      csv += [
-        BOM_STATUS_MAP[b.status]?.label || b.status, b.partNumber || '', part?.name || 'Unknown', sub,
-        BOM_FAB_TYPES[bomFabType(b)].label, b.material || '', b.process || '', b.qtyNeeded,
-        part?.inStock || 0, b.assignee || '', part?.unitCost || 0, vendor, loc, b.comments || ''
-      ].map(esc).join(',') + '\n';
+    let csv = 'Status,Part Number,Part Name,Subsystem,Type,Material,Machine,Qty,In Stock,Unit Cost,Location,Notes\n';
+    this.exportRows().forEach(r => {
+      csv += [r.status, r.partNumber, r.name, r.subsystem, r.type, r.material, r.machine, r.qty, r.inStock, r.unitCost, r.location, r.notes].map(esc).join(',') + '\n';
     });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${scopeName.replace(/\s+/g, '-').toLowerCase()}-master-spreadsheet.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('CSV Exported', 'success');
+    downloadFile(this.scopeFileName('csv'), csv, 'text/csv');
+    toast('CSV exported', 'success');
+  },
+
+  exportJSON() {
+    downloadFile(this.scopeFileName('json'), JSON.stringify(this.exportRows(), null, 2), 'application/json');
+    toast('JSON exported', 'success');
+  },
+
+  _statusKeyFromLabel(label) {
+    const l = String(label || '').toLowerCase().trim();
+    const hit = Object.entries(BOM_STATUS_MAP).find(([k, v]) => v.label.toLowerCase() === l || k === l);
+    return hit ? hit[0] : null;
+  },
+
+  async importFile(kind) {
+    const file = await pickFile(kind === 'csv' ? '.csv' : '.json');
+    if (!file) return;
+    try {
+      const text = await file.text();
+      let rows = [];
+      if (kind === 'csv') {
+        const parsed = parseCSV(text);
+        if (parsed.length < 2) return toast('CSV has no data rows', 'error');
+        const header = parsed[0].map(h => h.toLowerCase().trim());
+        const col = (names) => header.findIndex(h => names.some(n => h.includes(n)));
+        const ci = {
+          status: col(['status']), partNumber: col(['part number', 'part #', 'part no']),
+          name: col(['part name', 'name']), subsystem: col(['subsystem', 'sub']),
+          material: col(['material']), machine: col(['machine', 'process']),
+          qty: col(['qty', 'quantity']), inStock: col(['in stock', 'stock']),
+          unitCost: col(['cost']), notes: col(['notes', 'comment'])
+        };
+        if (ci.name === -1) return toast('CSV needs a "Part Name" column', 'error');
+        rows = parsed.slice(1).map(r => ({
+          status: r[ci.status], partNumber: r[ci.partNumber], name: r[ci.name], subsystem: r[ci.subsystem],
+          material: r[ci.material], machine: r[ci.machine], qty: r[ci.qty], inStock: r[ci.inStock],
+          unitCost: r[ci.unitCost], notes: r[ci.notes]
+        }));
+      } else {
+        const data = JSON.parse(text);
+        rows = Array.isArray(data) ? data : (data.items || []);
+      }
+
+      const fam = this.familyIds(this.scope);
+      const famProjects = fam.map(id => this.projects.find(p => p.id === id)).filter(Boolean);
+      const findSub = (label) => {
+        const l = String(label || '').toLowerCase().trim();
+        if (!l || l === 'main') return this.scope;
+        const hit = famProjects.find(p => p.name.toLowerCase() === l || String(p.code) === l);
+        return hit ? hit.id : this.scope;
+      };
+
+      let added = 0, updated = 0;
+      for (const r of rows) {
+        const name = (r.name || '').trim();
+        if (!name) continue;
+        const projectId = findSub(r.subsystem);
+        const machine = (r.machine ?? r.process ?? '').toString().trim();
+        const pn = (r.partNumber || '').trim();
+
+        // Part: reuse by name, else create
+        let part = this.parts.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (!part) {
+          const proj = this.projects.find(p => p.id === projectId);
+          const partId = await DB.add('parts', {
+            name, category: proj?.name || '', description: '',
+            locationId: null, containerId: null, unitCost: parseFloat(r.unitCost) || 0,
+            inStock: parseInt(r.inStock) || 0, needed: parseInt(r.qty) || 0,
+            photo: null, onshapeUrl: null, drawings: []
+          });
+          part = { id: partId, name };
+          this.parts.push(part);
+        } else {
+          let changed = false;
+          if (r.inStock !== undefined && r.inStock !== '' && !isNaN(parseInt(r.inStock))) { part.inStock = parseInt(r.inStock); changed = true; }
+          if (r.unitCost !== undefined && r.unitCost !== '' && !isNaN(parseFloat(r.unitCost))) { part.unitCost = parseFloat(r.unitCost); changed = true; }
+          if (changed) await DB.put('parts', part);
+        }
+
+        // Item: match by part number within scope, else by part within scope, else create
+        let item = pn ? this.boms.find(b => fam.includes(b.projectId) && (b.partNumber || '') === pn) : null;
+        if (!item) item = this.boms.find(b => fam.includes(b.projectId) && b.partId === part.id);
+
+        const statusKey = this._statusKeyFromLabel(r.status);
+        const fields = {
+          projectId,
+          partId: part.id,
+          qtyNeeded: parseInt(r.qty) || item?.qtyNeeded || 1,
+          material: (r.material ?? item?.material ?? '').toString().trim(),
+          process: machine || item?.process || '',
+          partNumber: pn || item?.partNumber || this.nextPartNumber(projectId),
+          comments: (r.notes ?? item?.comments ?? '').toString().trim()
+        };
+        fields.type = bomFabType(fields) === 'cots' ? 'cots' : 'inhouse';
+        fields.status = statusKey || item?.status || (fields.type === 'cots' ? 'not_started' : 'design');
+
+        if (item) {
+          Object.assign(item, fields);
+          await DB.put('bom_items', item);
+          updated++;
+        } else {
+          const newItem = { ...fields };
+          const newId = await DB.add('bom_items', newItem);
+          this.boms.push({ ...newItem, id: newId });
+          added++;
+        }
+      }
+      HistoryModule.log('update', 'bom_item', 'import', 'Spreadsheet import', `${added} added, ${updated} updated`);
+      toast(`Imported: ${added} added, ${updated} updated`, 'success');
+      await this.loadData();
+      this.renderRows();
+    } catch (err) {
+      console.error(err);
+      toast('Import failed: ' + err.message, 'error');
+    }
+  },
+
+  // Assign part numbers to items that don't have one — never touches existing IDs
+  async autoNumberMissing() {
+    const fam = this.familyIds(this.scope);
+    const missing = this.boms.filter(b => fam.includes(b.projectId) && !(b.partNumber || '').trim());
+    if (missing.length === 0) return toast('Every item already has a part number', 'info');
+
+    // Track the running max per subsystem so consecutive assignments don't collide
+    const counters = {};
+    const maxFor = (projectId) => {
+      if (counters[projectId] === undefined) {
+        let max = 0;
+        this.boms.filter(b => b.projectId === projectId).forEach(b => {
+          const m = /^\d+-(\d+)$/.exec(b.partNumber || '');
+          if (m) max = Math.max(max, parseInt(m[1]));
+        });
+        counters[projectId] = max;
+      }
+      return ++counters[projectId];
+    };
+
+    for (const item of missing) {
+      const proj = this.projects.find(p => p.id === item.projectId);
+      const code = proj?.code || '000';
+      item.partNumber = `${code}-${String(maxFor(item.projectId)).padStart(3, '0')}`;
+      await DB.put('bom_items', item);
+    }
+    HistoryModule.log('update', 'bom_item', 'autonumber', 'Auto-number', `${missing.length} items numbered`);
+    toast(`Numbered ${missing.length} item${missing.length === 1 ? '' : 's'}`, 'success');
+    await this.loadData();
+    this.renderRows();
   }
 };
 

@@ -367,17 +367,28 @@ const WorkspaceModule = {
         `;
       } else if (step === 2 && container) {
         stepTitle = `Step 2/${totalSteps}: Find ${escapeHTML(container.name)}`;
+        const hasBox = container.x != null && container.w != null;
         stepContent = `
           <div class="walk-step">
             <div class="walk-step-icon"><i class="fa-solid fa-box-open" style="font-size:32px;color:var(--blue)"></i></div>
             <h3 style="margin:12px 0 4px">${escapeHTML(container.name)}</h3>
             <p class="text-sm text-muted">Inside ${escapeHTML(loc.name)}</p>
-            ${loc.photo ? `
-              <div style="position:relative;margin-top:12px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-                <img src="${loc.photo}" style="width:100%;display:block;filter:brightness(0.5)">
-                <div style="position:absolute;left:${container.x}%;top:${container.y}%;width:${container.w}%;height:${container.h}%;border:3px solid #3b82f6;background:rgba(59,130,246,0.3);border-radius:4px;animation:pulse-border 1.5s infinite"></div>
+            ${container.photo ? `
+              <div style="margin-top:12px;width:100%">
+                <div class="text-xs text-muted" style="margin-bottom:4px;text-align:left">The container:</div>
+                <img src="${container.photo}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)" alt="Photo of ${escapeAttr(container.name)}">
               </div>
             ` : ''}
+            ${loc.photo ? `
+              <div style="width:100%">
+                <div class="text-xs text-muted" style="margin:12px 0 4px;text-align:left">Where it is in ${escapeHTML(loc.name)}:</div>
+                <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+                  <img src="${loc.photo}" style="width:100%;display:block;${hasBox ? 'filter:brightness(0.5)' : ''}">
+                  ${hasBox ? `<div style="position:absolute;left:${container.x}%;top:${container.y}%;width:${container.w}%;height:${container.h}%;border:3px solid #3b82f6;background:rgba(59,130,246,0.3);border-radius:4px;animation:pulse-border 1.5s infinite"></div>` : ''}
+                </div>
+              </div>
+            ` : ''}
+            ${!container.photo && !loc.photo ? '<p class="text-muted mt-4">No photos yet — add one to the container or zone so this step can show the way.</p>' : ''}
             <p class="text-sm text-muted mt-3">Look for <strong>${escapeHTML(container.name)}</strong> in this area.</p>
           </div>
         `;
