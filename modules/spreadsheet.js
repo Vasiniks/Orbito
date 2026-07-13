@@ -122,7 +122,7 @@ const SpreadsheetModule = {
   typeFilter: 'all',    // all | cnc | manufacture | print | cots
   sortField: 'default', // default = subsystem then part number
   sortDir: 1,
-  condensed: localStorage.getItem('orbito-ss-condensed') === '1',
+  condensed: localStorage.getItem('launchpad-ss-condensed') === '1',
 
   async render(container) {
     this.container = container;
@@ -139,7 +139,7 @@ const SpreadsheetModule = {
     }
     const tops = this.projects.filter(p => !p.parentId);
     if (!this.scope || !tops.find(p => p.id === this.scope)) {
-      const remembered = localStorage.getItem('orbito-ss-scope');
+      const remembered = localStorage.getItem('launchpad-ss-scope');
       this.scope = (remembered && tops.find(p => p.id === remembered)) ? remembered : (tops[0]?.id || null);
       this.subFilter = 'all';
     }
@@ -185,7 +185,7 @@ const SpreadsheetModule = {
       this.container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-table-cells"></i><h3>No project yet</h3><p>Create a project first — the master spreadsheet tracks its parts across subsystems.</p><button class="btn btn-primary" onclick="navigate('projects')"><i class="fa-solid fa-folder-plus"></i> Go to Projects</button></div>`;
       return;
     }
-    localStorage.setItem('orbito-ss-scope', this.scope);
+    localStorage.setItem('launchpad-ss-scope', this.scope);
 
     this.container.innerHTML = `
       <div class="toolbar">
@@ -220,7 +220,7 @@ const SpreadsheetModule = {
     document.getElementById('ssSearch').addEventListener('input', debounce(() => this.renderRows(), 150));
     document.getElementById('ssCondensedBtn').addEventListener('click', () => {
       this.condensed = !this.condensed;
-      localStorage.setItem('orbito-ss-condensed', this.condensed ? '1' : '0');
+      localStorage.setItem('launchpad-ss-condensed', this.condensed ? '1' : '0');
       this.renderView();
     });
     this.renderRows();

@@ -2,7 +2,7 @@ import datetime
 import os
 from fpdf import FPDF
 
-class OrbitoFeaturesPDF(FPDF):
+class LaunchpadFeaturesPDF(FPDF):
     def __init__(self):
         super().__init__()
         self.current_date = datetime.date.today().strftime("%B %d, %Y")
@@ -18,14 +18,14 @@ class OrbitoFeaturesPDF(FPDF):
         self.set_y(3)
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, "ORBITO  |  SYSTEM CAPABILITIES & FEATURES DIRECTORY", align="C", ln=True)
+        self.cell(0, 8, "LAUNCHPAD  |  SYSTEM CAPABILITIES & FEATURES DIRECTORY", align="C", ln=True)
         self.set_y(22)
 
     def footer(self):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(100, 116, 139) # Slate 500
-        self.cell(0, 10, f"Page {self.page_no()} of {{nb}}  |  Orbito Technical Specifications", align="C")
+        self.cell(0, 10, f"Page {self.page_no()} of {{nb}}  |  Launchpad Technical Specifications", align="C")
 
     def create_title_page(self):
         self.add_page()
@@ -39,7 +39,7 @@ class OrbitoFeaturesPDF(FPDF):
         # Main Title
         self.set_font("Helvetica", "B", 36)
         self.set_text_color(15, 23, 42) # Slate 900
-        self.cell(0, 15, "ORBITO", align="C", ln=True)
+        self.cell(0, 15, "LAUNCHPAD", align="C", ln=True)
         self.ln(5)
         
         # Subtitle
@@ -58,7 +58,7 @@ class OrbitoFeaturesPDF(FPDF):
         self.set_text_color(71, 85, 105) # Slate 600
         self.set_x(30)
         self.multi_cell(150, 6, 
-            "Orbito is an offline-first, client-side browser management application "
+            "Launchpad is an offline-first, client-side browser management application "
             "designed to coordinate parts inventories, bills of materials (BOM), "
             "vendors, tooling checkouts, member roles, kanban tasks, and "
             "workspace organization for high-performing engineering and robotics teams.",
@@ -108,7 +108,7 @@ class OrbitoFeaturesPDF(FPDF):
         self.ln(1)
 
 def generate_pdf():
-    pdf = OrbitoFeaturesPDF()
+    pdf = LaunchpadFeaturesPDF()
     pdf.alias_nb_pages()
     
     # 1. Create Cover Page
@@ -178,8 +178,8 @@ def generate_pdf():
     pdf.create_bullet("Location Audit Sidebar", "Clicking any map zone opens a details panel listing all parts and tools currently registered at that location.")
     
     # Save PDF
-    pdf.output("Orbito_Features_List.pdf")
-    print("PDF features list compiled successfully as Orbito_Features_List.pdf")
+    pdf.output("Launchpad_Features_List.pdf")
+    print("PDF features list compiled successfully as Launchpad_Features_List.pdf")
 
 if __name__ == "__main__":
     generate_pdf()

@@ -68,7 +68,7 @@ const HistoryModule = {
       items = items.slice(0, 100);
 
       if (items.length === 0) {
-        content.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><h3>No activity yet</h3><p>Actions will appear here as your team uses Orbito.</p></div>';
+        content.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><h3>No activity yet</h3><p>Actions will appear here as your team uses Launchpad.</p></div>';
         return;
       }
 
@@ -83,13 +83,16 @@ const HistoryModule = {
       create: 'fa-plus text-green', update: 'fa-pen text-blue',
       delete: 'fa-trash text-red', checkout: 'fa-arrow-right text-amber',
       checkin: 'fa-arrow-left text-green', approve: 'fa-check text-green',
-      reject: 'fa-xmark text-red', arrived: 'fa-location-dot text-accent'
+      reject: 'fa-xmark text-red', arrived: 'fa-location-dot text-accent',
+      signin: 'fa-arrow-right-to-bracket text-accent',
+      signout: 'fa-arrow-right-from-bracket text-muted'
     };
     const icon = icons[item.action] || 'fa-circle-info text-muted';
     const verb = {
       create: 'created', update: 'updated', delete: 'deleted',
       checkout: 'checked out', checkin: 'returned', approve: 'approved',
-      reject: 'rejected', arrived: 'arrived at'
+      reject: 'rejected', arrived: 'arrived at',
+      signin: 'signed in to', signout: 'signed out of'
     }[item.action] || item.action;
 
     const timeAgo = this.timeAgo(item.timestamp);

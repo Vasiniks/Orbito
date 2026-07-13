@@ -1,4 +1,4 @@
-# Orbito
+# Launchpad
 
 A fully offline, browser-based management system designed for robotics teams to handle everything from parts and inventory to tasks and workspace organization.
 
@@ -17,7 +17,7 @@ A fully offline, browser-based management system designed for robotics teams to 
 
 ## How to Run
 
-Since Orbito is a 100% front-end application, there is no server to run.
+Since Launchpad is a 100% front-end application, there is no server to run.
 
 1. Clone the repository.
 2. Open `index.html` in your web browser.

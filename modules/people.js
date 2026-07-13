@@ -119,7 +119,9 @@ const PeopleModule = {
 
   async showAddModal(id = null) {
     const p = id ? this.people.find(x => x.id === id) : {};
-    
+    const canApprove = AuthModule && AuthModule.canPerform('approve_users');
+    const currentStatus = p.status || 'approved';
+
     const body = `
       <form id="personForm">
         <div class="form-group">
@@ -141,7 +143,7 @@ const PeopleModule = {
               <option value="Lead" ${p.role === 'Lead' ? 'selected' : ''}>Lead</option>
               ${AuthModule && AuthModule.canPerform('edit_roles') ? `<option value="Mentor" ${p.role === 'Mentor' ? 'selected' : ''}>Mentor</option>` : ''}
             </select>
-            <div class="form-hint">Controls permissions in Orbito.</div>
+            <div class="form-hint">Controls permissions in Launchpad.</div>
           </div>
         </div>
         <div class="form-group">
@@ -155,8 +157,15 @@ const PeopleModule = {
         </div>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">PIN (Optional login)</label>
-            <input type="password" class="form-input" id="personPin" value="${escapeHTML(p.pin || '')}" placeholder="4 digits">
+            <label class="form-label">Account Status</label>
+            ${canApprove
+              ? `<select class="form-select" id="personStatus">
+                  <option value="approved" ${currentStatus !== 'pending' ? 'selected' : ''}>Active</option>
+                  <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>Pending Approval</option>
+                </select>`
+              : `<p class="text-sm" id="personStatusDisplay" data-status="${currentStatus}">${currentStatus === 'pending' ? 'Pending Approval' : 'Active'}</p>
+                 <p class="text-xs text-muted" style="margin-top:4px">Only Mentors can change account status.</p>`
+            }
           </div>
           <div class="form-group">
             <label class="form-label">Contact Info (Phone/Email)</label>
@@ -180,13 +189,28 @@ const PeopleModule = {
       return toast('Name is required', 'error');
     }
 
+    const canApprove = AuthModule && AuthModule.canPerform('approve_users');
+    // Read the status from the DOM (savePerson is a module method, not a
+    // closure inside showAddModal, so it cannot reach the local `p` variable).
+    // The Mentor-only branch exposes a `<select id="personStatus">`; the
+    // read-only branch exposes a `<p id="personStatusDisplay" data-status="…">`
+    // whose data attribute holds the canonical status ('approved' | 'pending').
+    let status = 'approved';
+    if (canApprove) {
+      const sel = document.getElementById('personStatus');
+      if (sel) status = sel.value;
+    } else {
+      const ro = document.getElementById('personStatusDisplay');
+      if (ro && ro.dataset.status) status = ro.dataset.status;
+    }
+
     const data = {
       id: id || undefined,
       name,
       role: document.getElementById('personRole').value,
       level: document.getElementById('personLevel').value,
       subteams: [...document.querySelectorAll('.person-subteam-cb:checked')].map(cb => cb.value),
-      pin: document.getElementById('personPin').value,
+      status,
       contact: document.getElementById('personContact').value.trim()
     };
 

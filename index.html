@@ -4,13 +4,14 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <meta name="theme-color" content="#111113"/>
-    <title>Orbito — Workspace Manager</title>
+    <title>Launchpad — Workspace Manager</title>
     <meta name="description" content="Manage parts, projects, tools, and people. Built for robotics teams."/>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https://cataas.com https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://*.googleapis.com https://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://oauth2.googleapis.com https://storage.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; object-src 'none'; frame-src 'self' https://cad.onshape.com https://accounts.google.com; base-uri 'self';"/>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link rel="preconnect" href="https://www.gstatic.com"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"/>
-    <link rel="stylesheet" href="style.css?v=16"/>
+    <link rel="stylesheet" href="style.css?v=17"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
@@ -20,8 +21,8 @@
     <div class="landing">
       <div class="landing-nav">
         <div class="auth-brand" style="margin:0">
-          <div class="auth-brand-icon" aria-hidden="true">O</div>
-          <span class="auth-brand-name">Orbito</span>
+          <div class="auth-brand-icon" aria-hidden="true">L</div>
+          <span class="auth-brand-name">Launchpad</span>
         </div>
       </div>
       <div class="landing-main">
@@ -48,6 +49,7 @@
           <h2 class="auth-title">Sign in</h2>
           <p class="auth-sub">Use your team Google account to open the workspace.</p>
           <button id="googleSignInBtn" class="btn btn-primary auth-cta"><i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google</button>
+          <button id="mainOfflineBtn" class="btn btn-secondary auth-cta" style="margin-top:10px"><i class="fa-solid fa-wifi-slash" aria-hidden="true"></i> Work Offline</button>
           <p class="auth-foot">New members need a one-time approval from a team Mentor.</p>
         </div>
       </div>
@@ -57,8 +59,8 @@
   <div id="pendingOverlay" class="auth-overlay" style="display:none">
     <div class="auth-card">
       <div class="auth-brand">
-        <div class="auth-brand-icon" aria-hidden="true">O</div>
-        <span class="auth-brand-name">Orbito</span>
+        <div class="auth-brand-icon" aria-hidden="true">L</div>
+        <span class="auth-brand-name">Launchpad</span>
       </div>
       <h1 class="auth-title">Almost there</h1>
       <p class="auth-sub">Your account is waiting on approval from a Mentor. Check back once they've let you in.</p>
@@ -72,8 +74,8 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <div class="sidebar-brand-icon">O</div>
-                <span class="sidebar-brand-name">Orbito</span>
+                <div class="sidebar-brand-icon">L</div>
+                <span class="sidebar-brand-name">Launchpad</span>
             </div>
             <nav class="sidebar-nav">
                 <div class="sidebar-section-title">Overview</div>
@@ -124,6 +126,10 @@
                 </a>
             </nav>
             <div class="sidebar-footer">
+                <div class="sidebar-user" id="sidebarUser" style="padding:12px 16px;border-top:1px solid var(--border);margin-bottom:4px;display:none">
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:2px">Signed in as</div>
+                    <div id="currentUserName" style="font-size:13px;font-weight:500;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+                </div>
                 <a class="nav-item" data-view="settings" href="#settings">
                     <i class="fa-solid fa-gear"></i> Settings
                 </a>
@@ -181,22 +187,22 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=16"></script>
-<script src="db.js?v=16"></script>
-<script src="modules/projects.js?v=16"></script>
-<script src="modules/parts.js?v=16"></script>
-<script src="modules/spreadsheet.js?v=16"></script>
-<script src="modules/cnc.js?v=16"></script>
-<script src="modules/vendors.js?v=16"></script>
-<script src="modules/tools.js?v=16"></script>
-<script src="modules/people.js?v=16"></script>
-<script src="modules/tasks.js?v=16"></script>
-<script src="modules/workspace.js?v=16"></script>
-<script src="modules/sketches.js?v=16"></script>
-<script src="modules/search.js?v=16"></script>
-<script src="modules/annotate.js?v=16"></script>
-<script src="modules/history.js?v=16"></script>
-<script src="modules/tour.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script type="module" src="auth.js?v=17"></script>
+<script src="db.js?v=17"></script>
+<script src="modules/projects.js?v=17"></script>
+<script src="modules/parts.js?v=17"></script>
+<script src="modules/spreadsheet.js?v=17"></script>
+<script src="modules/cnc.js?v=17"></script>
+<script src="modules/vendors.js?v=17"></script>
+<script src="modules/tools.js?v=17"></script>
+<script src="modules/people.js?v=17"></script>
+<script src="modules/tasks.js?v=17"></script>
+<script src="modules/workspace.js?v=17"></script>
+<script src="modules/sketches.js?v=17"></script>
+<script src="modules/search.js?v=17"></script>
+<script src="modules/annotate.js?v=17"></script>
+<script src="modules/history.js?v=17"></script>
+<script src="modules/tour.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
