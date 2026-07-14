@@ -13,3 +13,4 @@ firebase-tools
 !package-lock.json
 !example_frc_2026.json
 sample_data.json
+chrome.log
