@@ -121,14 +121,28 @@ async function loadFirebaseEnv() {
 
 const env = await loadFirebaseEnv();
 
+// Default config for the deployed site. A Firebase *web* config is not a
+// secret — it identifies the project; access is enforced by Firestore
+// security rules and Google sign-in. Hosting ignores dotfiles, so without
+// this fallback the deployed app boots configless and online mode dies.
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDo47kaPkgNqF6PID07SxNyIi0D3wRcEZM",
+  authDomain: "orbito-a7c1d.firebaseapp.com",
+  projectId: "orbito-a7c1d",
+  storageBucket: "orbito-a7c1d.firebasestorage.app",
+  messagingSenderId: "83395229819",
+  appId: "1:83395229819:web:7c99c516974781083f8ade",
+  measurementId: "G-H3238BRN5N"
+};
+
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY || "",
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: env.VITE_FIREBASE_APP_ID || "",
-  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || ""
+  apiKey: env.VITE_FIREBASE_API_KEY || DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId: env.VITE_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE_CONFIG.projectId,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  appId: env.VITE_FIREBASE_APP_ID || DEFAULT_FIREBASE_CONFIG.appId,
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || DEFAULT_FIREBASE_CONFIG.measurementId
 };
 
 const hasFirebaseConfig = [
@@ -473,24 +487,40 @@ window.AuthModule = {
     }
   },
 
+  // Team accounts (@1360.ca) are trusted automatically; anyone else needs a
+  // one-time Mentor approval.
+  isTeamEmail(email) {
+    return /@1360\.ca$/i.test((email || '').trim());
+  },
+
   async checkUserAccess(user) {
     try {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
+      const autoApprove = this.isTeamEmail(user.email);
 
       if (!userSnap.exists()) {
-        // New user - default to pending Student
-        await setDoc(userRef, {
+        // New user: team domain → approved Student right away, else pending
+        const newUser = {
           uid: user.uid,
           email: user.email,
           name: user.displayName,
           role: 'Student', // Default role
-          status: 'pending',
+          status: autoApprove ? 'approved' : 'pending',
           createdAt: Date.now()
-        });
+        };
+        await setDoc(userRef, newUser);
+        if (autoApprove) {
+          return this.checkUserAccess(user); // re-run against the saved doc
+        }
         document.getElementById('pendingOverlay').style.display = 'flex';
       } else {
         const userData = userSnap.data();
+        // Previously-pending team accounts get unblocked on their next sign-in
+        if (userData.status !== 'approved' && autoApprove) {
+          userData.status = 'approved';
+          await setDoc(userRef, userData, { merge: true });
+        }
         if (userData.status === 'approved') {
           this.currentUser = userData;
           this.userRole = userData.role;

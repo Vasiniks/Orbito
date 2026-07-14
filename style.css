@@ -702,6 +702,7 @@ tr.row-stock-low td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .stock-chip.stock-green { background: var(--green-dim);  color: var(--green); }
 .stock-chip.stock-yellow{ background: var(--accent-dim); color: var(--accent); }
 .stock-chip.stock-red   { background: var(--red-dim);    color: var(--red); }
+.stock-chip.stock-above { background: var(--blue-dim);   color: var(--blue); }
 
 /* ══════════ Detail chips (FRCBOM-style: machine/process, material, vendor) ══════════ */
 /* Minimal: neutral chip, the icon carries the color accent */
@@ -854,6 +855,10 @@ tr.row-not-used:hover td { opacity: 0.8; }
 }
 .qty-btn:hover { border-color: var(--border-hover); color: var(--text-0); }
 .qty-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Reference photo slots (what each stock status looks like) */
+.ref-slot { aspect-ratio: 4/3; }
+.ref-slot span { font-size: 11px; text-align: center; }
 
 /* ══════════ Containers browser ══════════ */
 .container-grid {

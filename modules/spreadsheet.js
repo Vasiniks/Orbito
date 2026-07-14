@@ -123,6 +123,22 @@ const SpreadsheetModule = {
   sortField: 'default', // default = subsystem then part number
   sortDir: 1,
   condensed: localStorage.getItem('launchpad-ss-condensed') === '1',
+  hiddenCols: new Set(JSON.parse(localStorage.getItem('launchpad-ss-cols') || '[]')),
+
+  HIDEABLE_COLS: [
+    { key: 'status', label: 'Status' },
+    { key: 'pn', label: 'Part #' },
+    { key: 'sub', label: 'Subsystem' },
+    { key: 'type', label: 'Type' },
+    { key: 'material', label: 'Material' },
+    { key: 'machine', label: 'Machine' },
+    { key: 'qty', label: 'Qty' },
+    { key: 'stock', label: 'Stock' },
+    { key: 'cost', label: 'Cost' },
+    { key: 'location', label: 'Location' },
+  ],
+
+  colVisible(key) { return !this.hiddenCols.has(key); },
 
   async render(container) {
     this.container = container;
@@ -198,6 +214,7 @@ const SpreadsheetModule = {
           </div>
         </div>
         <div class="toolbar-right">
+          <button class="btn-icon" id="ssColsBtn" title="Show / hide columns" aria-label="Show or hide columns"><i class="fa-solid fa-table-columns" aria-hidden="true"></i></button>
           <button class="btn-icon ${this.condensed ? 'active-toggle' : ''}" id="ssCondensedBtn" title="${this.condensed ? 'Comfortable rows' : 'Condensed rows'}" aria-label="Toggle condensed view">
             <i class="fa-solid ${this.condensed ? 'fa-table-list' : 'fa-bars-staggered'}" aria-hidden="true"></i>
           </button>
@@ -220,6 +237,12 @@ const SpreadsheetModule = {
       this.condensed = !this.condensed;
       localStorage.setItem('launchpad-ss-condensed', this.condensed ? '1' : '0');
       this.renderView();
+    });
+    document.getElementById('ssColsBtn').addEventListener('click', (e) => {
+      showColumnMenu(e.target.closest('button'), this.HIDEABLE_COLS, this.hiddenCols, () => {
+        localStorage.setItem('launchpad-ss-cols', JSON.stringify([...this.hiddenCols]));
+        this.renderRows();
+      });
     });
     document.getElementById('ssDataBtn').addEventListener('click', (e) => {
       showPopMenu(e.target.closest('button'), [
@@ -390,7 +413,8 @@ const SpreadsheetModule = {
 
     const th = (field, label, cls = '') => `<th class="${cls}" style="cursor:pointer" onclick="SpreadsheetModule.setSort('${field}')">${label} ${this.sortIcon(field)}</th>`;
     const groupDividers = this.sortField === 'default' && this.subFilter === 'all';
-    const COLS = 12;
+    const v = (key) => this.colVisible(key);
+    const COLS = 2 + this.HIDEABLE_COLS.filter(c => v(c.key)).length; // name + notes always shown
 
     let lastGroup = null;
     const bodyHTML = rows.map((row) => {
@@ -420,17 +444,17 @@ const SpreadsheetModule = {
 
       return divider + `
         <tr class="${rowCls}">
-          <td data-label="Status"><button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();SpreadsheetModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button></td>
-          <td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>
+          ${v('status') ? `<td data-label="Status"><button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();SpreadsheetModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button></td>` : ''}
+          ${v('pn') ? `<td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>` : ''}
           <td data-label="Part">${part ? `<button class="ss-name" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${part.id}'))" title="Open part details">${escapeHTML(part.name)}</button>` : '<span class="text-muted">Unknown Part</span>'}</td>
-          <td data-label="Sub">${isMain ? getSubsystemChip(null, 'Main') : getSubsystemChip(proj)}</td>
-          <td data-label="Type">${getFabChip(b)}</td>
-          <td data-label="Material">${this.chip(b.material, 'fa-layer-group', eb('material'))}</td>
-          <td data-label="Machine">${this.chip(b.process, 'fa-gears', eb('process'))}</td>
-          <td data-label="Qty">${this.chip(String(b.qtyNeeded), null, eb('qtyNeeded'))}</td>
-          <td data-label="Stock">${part ? getStockChip(inStock, b.qtyNeeded, part.id) : '—'}</td>
-          <td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>
-          <td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', ep('locationId')) : '—'}</td>
+          ${v('sub') ? `<td data-label="Sub">${isMain ? getSubsystemChip(null, 'Main') : getSubsystemChip(proj)}</td>` : ''}
+          ${v('type') ? `<td data-label="Type">${getFabChip(b)}</td>` : ''}
+          ${v('material') ? `<td data-label="Material">${this.chip(b.material, 'fa-layer-group', eb('material'))}</td>` : ''}
+          ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, 'fa-gears', eb('process'))}</td>` : ''}
+          ${v('qty') ? `<td data-label="Qty">${this.chip(String(b.qtyNeeded), null, eb('qtyNeeded'))}</td>` : ''}
+          ${v('stock') ? `<td data-label="Stock">${part ? getStockChip(inStock, b.qtyNeeded, part.id) : '—'}</td>` : ''}
+          ${v('cost') ? `<td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>` : ''}
+          ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', ep('locationId')) : '—'}</td>` : ''}
           <td data-label="Notes" class="text-right">
             <div class="flex items-center justify-end gap-1">
               ${this.chip(b.comments ? (b.comments.length > 26 ? b.comments.slice(0, 24) + '…' : b.comments) : '', 'fa-comment', eb('comments'), b.comments || 'Add a note')}
@@ -446,17 +470,17 @@ const SpreadsheetModule = {
       <table class="spreadsheet-table" style="white-space:nowrap; width:max-content; min-width:100%;">
         <thead style="position:sticky; top:0; z-index:10; box-shadow:0 1px 0 var(--border);">
           <tr>
-            ${th('status', 'Status')}
-            ${th('pn', 'Part #')}
+            ${v('status') ? th('status', 'Status') : ''}
+            ${v('pn') ? th('pn', 'Part #') : ''}
             ${th('name', 'Part')}
-            ${th('type', 'Sub', '')}
-            ${th('type', 'Type')}
-            ${th('material', 'Material')}
-            ${th('machine', 'Machine')}
-            ${th('qty', 'Qty')}
-            ${th('stock', 'Stock')}
-            ${th('cost', 'Cost')}
-            ${th('location', 'Location')}
+            ${v('sub') ? th('type', 'Sub', '') : ''}
+            ${v('type') ? th('type', 'Type') : ''}
+            ${v('material') ? th('material', 'Material') : ''}
+            ${v('machine') ? th('machine', 'Machine') : ''}
+            ${v('qty') ? th('qty', 'Qty') : ''}
+            ${v('stock') ? th('stock', 'Stock') : ''}
+            ${v('cost') ? th('cost', 'Cost') : ''}
+            ${v('location') ? th('location', 'Location') : ''}
             <th class="text-right">Notes</th>
           </tr>
         </thead>
@@ -686,8 +710,16 @@ const SpreadsheetModule = {
     const fab = bomFabType({ process, type: 'inhouse' });
 
     try {
-      // Reuse an existing part with this exact name, or create one
+      // Reuse an existing part with this exact name, or create one.
+      // Duplicate catcher: warn when a similar (but not identical) part exists.
       let part = this.parts.find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (!part) {
+        const similar = findSimilarPart(name, this.parts);
+        if (similar && !confirm(`${similar.exact ? 'A part with this name' : 'A similar part'} already exists: "${similar.part.name}".\n\nCreate "${name}" as a new part anyway?\n(Cancel and retype the exact name to reuse the existing part.)`)) {
+          if (btn) btn.disabled = false;
+          return;
+        }
+      }
       if (!part) {
         const proj = this.projects.find(p => p.id === targetProjectId);
         const partId = await DB.add('parts', {

@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://www.gstatic.com"/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"/>
     <link rel="icon" type="image/png" href="logo-mark.png"/>
-    <link rel="stylesheet" href="style.css?v=18"/>
+    <link rel="stylesheet" href="style.css?v=20"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
@@ -94,8 +94,11 @@
                 <a class="nav-item" data-view="parts" href="#parts">
                     <i class="fa-solid fa-screwdriver-wrench"></i> Parts Library
                 </a>
-                <a class="nav-item" data-view="sketches" href="#sketches">
-                    <i class="fa-solid fa-pen-nib"></i> Global Sketches
+                <a class="nav-item" data-view="buy" href="#buy">
+                    <i class="fa-solid fa-cart-shopping"></i> Buy List
+                </a>
+                <a class="nav-item" data-view="containers" href="#containers">
+                    <i class="fa-solid fa-box"></i> Containers
                 </a>
                 <a class="nav-item" data-view="spreadsheet" href="#spreadsheet">
                     <i class="fa-solid fa-table-cells"></i> Master Spreadsheet
@@ -103,8 +106,19 @@
                 <a class="nav-item" data-view="cnc" href="#cnc">
                     <i class="fa-solid fa-gears"></i> CNC List
                 </a>
+                <a class="nav-item" data-view="vendors" href="#vendors">
+                    <i class="fa-solid fa-store"></i> Vendors
+                </a>
                 <a class="nav-item" data-view="tools" href="#tools">
                     <i class="fa-solid fa-wrench"></i> Tools
+                </a>
+                <a class="nav-item" data-view="sketches" href="#sketches">
+                    <i class="fa-solid fa-pen-nib"></i> Global Sketches
+                </a>
+
+                <div class="sidebar-section-title">Team</div>
+                <a class="nav-item" data-view="accounts" href="#accounts">
+                    <i class="fa-solid fa-users"></i> Accounts
                 </a>
                 <a class="nav-item" data-view="history" href="#history">
                     <i class="fa-solid fa-clock-rotate-left"></i> Activity
@@ -177,19 +191,23 @@
 </div>
 
 <!-- Scripts (order matters: db first, then app shell, then modules) -->
-<script type="module" src="auth.js?v=18"></script>
-<script src="db.js?v=18"></script>
-<script src="modules/projects.js?v=18"></script>
-<script src="modules/parts.js?v=18"></script>
-<script src="modules/spreadsheet.js?v=18"></script>
-<script src="modules/cnc.js?v=18"></script>
-<script src="modules/tools.js?v=18"></script>
-<script src="modules/workspace.js?v=18"></script>
-<script src="modules/sketches.js?v=18"></script>
-<script src="modules/search.js?v=18"></script>
-<script src="modules/annotate.js?v=18"></script>
-<script src="modules/history.js?v=18"></script>
-<script src="modules/tour.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script type="module" src="auth.js?v=20"></script>
+<script src="db.js?v=20"></script>
+<script src="modules/projects.js?v=20"></script>
+<script src="modules/parts.js?v=20"></script>
+<script src="modules/spreadsheet.js?v=20"></script>
+<script src="modules/cnc.js?v=20"></script>
+<script src="modules/buy.js?v=20"></script>
+<script src="modules/containers.js?v=20"></script>
+<script src="modules/vendors.js?v=20"></script>
+<script src="modules/accounts.js?v=20"></script>
+<script src="modules/tools.js?v=20"></script>
+<script src="modules/workspace.js?v=20"></script>
+<script src="modules/sketches.js?v=20"></script>
+<script src="modules/search.js?v=20"></script>
+<script src="modules/annotate.js?v=20"></script>
+<script src="modules/history.js?v=20"></script>
+<script src="modules/tour.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

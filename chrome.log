@@ -1,0 +1,6 @@
+[26957:51545538:0713/200657.813830:INFO:components/enterprise/browser/controller/chrome_browser_cloud_management_controller.cc:239] No machine level policy manager exists.
+[26957:51545606:0713/200657.890586:WARNING:chrome/browser/extensions/external_pref_loader.cc:294] You are using an old-style extension deployment method (external_extensions.json), which will soon be deprecated. (see http://developer.chrome.com/docs/extensions/how-to/distribute/install-extensions)
+[26957:51545538:0713/200658.769296:INFO:CONSOLE:167] "Firebase initialized successfully", source: http://localhost:8000/auth.js?v=18 (167)
+[26957:51545608:0713/200700.898566:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+[26957:51545608:0713/200700.898793:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+[26957:51545608:0713/200700.904960:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR

@@ -5,8 +5,12 @@ const MODULES = {
   dashboard: { title: 'Dashboard', render: renderDashboard },
   projects:  { title: 'Projects',  render: (c) => ProjectsModule.render(c) },
   parts:     { title: 'Parts & Inventory', render: (c) => PartsModule.render(c) },
+  buy:       { title: 'Buy List',  render: (c) => BuyModule.render(c) },
+  containers:{ title: 'Containers', render: (c) => ContainersModule.render(c) },
+  vendors:   { title: 'Vendors',   render: (c) => VendorsModule.render(c) },
   cnc:       { title: 'CNC List', render: (c) => CncModule.render(c) },
   tools:     { title: 'Tools',     render: (c) => ToolsModule.render(c) },
+  accounts:  { title: 'Accounts',  render: (c) => AccountsModule.render(c) },
   history:   { title: 'Activity',  render: (c) => HistoryModule.render(c) },
   workspace: { title: 'Workspace Map', render: (c) => WorkspaceModule.render(c) },
   spreadsheet: { title: 'Master Spreadsheet', render: (c) => SpreadsheetModule.render(c) },
@@ -120,16 +124,78 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function getStockChip(inStock, needed, partId) {
-  const perc = needed ? (inStock / needed) * 100 : 0;
-  const thresholds = window.__stockThresholds || { high: 80, medium: 50, low: 10 };
-  let cls = 'stock-red';
-  if (perc >= thresholds.high) cls = 'stock-full';
-  else if (perc >= thresholds.medium) cls = 'stock-green';
-  else if (perc >= thresholds.low) cls = 'stock-yellow';
-  
-  return `<span class="stock-chip ${cls}" data-part-id="${partId}" title="${inStock}/${needed}">${inStock}/${needed}</span>`;
+// ── Stock status vs baseline ──
+// General status: Above / At / Below baseline, using a configurable ±% tolerance.
+// Specific detail: the exact % off baseline (shown in the chip tooltip).
+function stockStatus(inStock, baseline) {
+  const tol = (window.__stockSettings?.tolerance ?? 10) / 100;
+  if (!baseline) return { status: 'at', pct: 0, label: 'No baseline set' };
+  const pct = Math.round(((inStock - baseline) / baseline) * 100);
+  if (inStock < baseline * (1 - tol)) return { status: 'below', pct, label: `${pct}% — below baseline` };
+  if (inStock > baseline * (1 + tol)) return { status: 'above', pct, label: `+${pct}% — above baseline` };
+  return { status: 'at', pct, label: `${pct >= 0 ? '+' : ''}${pct}% — at baseline` };
 }
+window.stockStatus = stockStatus;
+
+function getStockChip(inStock, needed, partId) {
+  const st = stockStatus(inStock || 0, needed || 0);
+  const cls = st.status === 'below' ? 'stock-red' : st.status === 'above' ? 'stock-above' : 'stock-green';
+  return `<span class="stock-chip ${cls}" data-part-id="${escapeAttr(partId)}" title="${escapeAttr(st.label)}">${inStock}/${needed}</span>`;
+}
+
+// ── Duplicate part catching ──
+function normalizePartName(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+// Returns { exact } or { similar } match against existing parts, or null.
+function findSimilarPart(name, parts, excludeId = null) {
+  const n = normalizePartName(name);
+  if (!n) return null;
+  const pool = parts.filter(p => p.id !== excludeId);
+  const exact = pool.find(p => normalizePartName(p.name) === n);
+  if (exact) return { part: exact, exact: true };
+  const similar = pool.find(p => {
+    const pn = normalizePartName(p.name);
+    return Math.min(pn.length, n.length) >= 5 && (pn.includes(n) || n.includes(pn));
+  });
+  return similar ? { part: similar, exact: false } : null;
+}
+window.findSimilarPart = findSimilarPart;
+
+// ── Column visibility menu (stays open while toggling) ──
+function showColumnMenu(anchor, cols, hiddenSet, onChange) {
+  document.getElementById('genericPopmenu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'popmenu';
+  menu.id = 'genericPopmenu';
+  const render = () => {
+    menu.innerHTML = '<div class="popmenu-label">Show columns</div>' + cols.map(c => `
+      <button class="popmenu-item" data-key="${escapeAttr(c.key)}">
+        <span><i class="fa-solid ${hiddenSet.has(c.key) ? 'fa-square' : 'fa-square-check'}" style="width:16px;margin-right:6px;color:${hiddenSet.has(c.key) ? 'var(--text-3)' : 'var(--accent)'}"></i>${escapeHTML(c.label)}</span>
+      </button>`).join('');
+    menu.querySelectorAll('.popmenu-item').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = b.dataset.key;
+        if (hiddenSet.has(key)) hiddenSet.delete(key);
+        else hiddenSet.add(key);
+        onChange();
+        render(); // keep the menu open for multi-toggling
+      });
+    });
+  };
+  render();
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = Math.max(8, Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4)) + 'px';
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', function close(e) {
+      if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); }
+    });
+  }, 0);
+}
+window.showColumnMenu = showColumnMenu;
 
 // ── Detail chips (FRCBOM-style): machine/process, material, vendor ──
 function getProcessChip(process) {
@@ -309,9 +375,13 @@ window.downloadFile = downloadFile;
 const VIEW_HELP = {
   dashboard: 'Your shop at a glance: project counts, stock health, and the machine queue. Numbers update live as the team works.',
   projects: 'Projects hold subsystems (like Elevator or Arm). The master spreadsheet tracks every subsystem\'s parts in one place. Use Duplicate to reuse a season\'s structure as a template.',
-  parts: 'Pure stock tracking. Use the +/− buttons for quick counts, click a stock chip to edit stock and baseline, and filter by location or container. The Containers button manages bins with photos; the route icon walks you to a part.',
+  parts: 'Pure stock tracking. Colors show Above / At / Below baseline (tolerance set in Settings). Use the +/− buttons for quick counts, click a stock chip to edit stock and baseline, and filter by status, category, vendor, location, or container. The Columns button hides columns you don\'t need.',
+  buy: 'Everything below baseline in one shopping list: how many to buy, from which vendor, with direct buy links and cost estimates. Export the CSV when you\'re ready to order.',
+  containers: 'Every bin, drawer, and shelf: photo, shop location, and the parts inside. Click a container to see its contents.',
+  vendors: 'Vendor contact info and links. Click a vendor to see every part you buy from them.',
   cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status to update it as parts come off the machine.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
+  accounts: 'Team accounts. 1360.ca sign-ins are approved automatically; others need a Mentor. Click an account to see every spreadsheet line with their name on it.',
   history: 'A feed of every change: who did what, and when.',
   workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
   spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, cost, location, and notes edit in place. The Data menu imports/exports CSV and JSON and auto-numbers parts missing an ID.',
@@ -547,25 +617,23 @@ async function renderSettings(container) {
         </div>
       </div>
       <div class="card" style="margin-bottom:16px">
-        <div class="card-header"><h3>Stock Thresholds</h3></div>
+        <div class="card-header"><h3>Stock Status</h3></div>
         <div class="card-body">
-          <p class="text-sm text-muted" style="margin-bottom:14px">Percentage of "needed" that counts as full, medium, or low. These drive the stock chip and row colors everywhere.</p>
-          <div class="grid-3" style="gap:12px; margin-bottom:16px">
-            <div>
-              <label class="form-label" for="thresholdHigh">Full (&ge; %)</label>
-              <input type="number" class="form-input" id="thresholdHigh" value="${window.__stockThresholds?.high ?? 80}" min="0" max="100">
-            </div>
-            <div>
-              <label class="form-label" for="thresholdMedium">Medium (&ge; %)</label>
-              <input type="number" class="form-input" id="thresholdMedium" value="${window.__stockThresholds?.medium ?? 50}" min="0" max="100">
-            </div>
-            <div>
-              <label class="form-label" for="thresholdLow">Low (&ge; %)</label>
-              <input type="number" class="form-input" id="thresholdLow" value="${window.__stockThresholds?.low ?? 10}" min="0" max="100">
-            </div>
+          <p class="text-sm text-muted" style="margin-bottom:12px">Stock is compared against each part's baseline. Within the tolerance counts as "at baseline"; outside it is above or below.</p>
+          <div class="flex items-center gap-3 mb-3" style="flex-wrap:wrap">
+            <span class="stock-chip stock-above" style="cursor:default" title="More than tolerance above baseline">Above baseline</span>
+            <span class="stock-chip stock-green" style="cursor:default" title="Within tolerance of baseline">At baseline</span>
+            <span class="stock-chip stock-red" style="cursor:default" title="More than tolerance below baseline">Below baseline</span>
           </div>
-          <div class="text-right">
-            <button class="btn btn-primary" id="saveThresholdsBtn"><i class="fa-solid fa-floppy-disk"></i> Save Thresholds</button>
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div>
+              <label class="form-label" for="stockTolerance" style="margin-bottom:2px">Tolerance (&plusmn;%)</label>
+              <div class="form-hint">e.g. 10 means 90–110% of baseline counts as "at baseline".</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" class="form-input" id="stockTolerance" value="${window.__stockSettings?.tolerance ?? 10}" min="0" max="100" style="width:90px">
+              <button class="btn btn-primary" id="saveThresholdsBtn"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -689,18 +757,14 @@ async function renderSettings(container) {
   });
 
   document.getElementById('saveThresholdsBtn').addEventListener('click', async () => {
-    const high = parseInt(document.getElementById('thresholdHigh').value) || 80;
-    const medium = parseInt(document.getElementById('thresholdMedium').value) || 50;
-    const low = parseInt(document.getElementById('thresholdLow').value) || 10;
-    if (high < medium || medium < low) {
-      return toast('Thresholds must be: Full >= Medium >= Low', 'error');
-    }
+    const tolerance = Math.max(0, Math.min(100, parseInt(document.getElementById('stockTolerance').value)));
+    if (isNaN(tolerance)) return toast('Enter a tolerance percentage', 'error');
     try {
-      await DB.put('settings', { id: 'stockThresholds', high, medium, low });
-      window.__stockThresholds = { high, medium, low };
-      toast('Stock thresholds saved!', 'success');
+      await DB.put('settings', { id: 'stockSettings', tolerance });
+      window.__stockSettings = { tolerance };
+      toast('Stock tolerance saved!', 'success');
     } catch (e) {
-      toast('Failed to save thresholds: ' + e.message, 'error');
+      toast('Failed to save: ' + e.message, 'error');
     }
   });
 
@@ -855,22 +919,17 @@ window.App = {
     const savedTheme = localStorage.getItem('launchpad-theme');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Load stock thresholds
+    // Load stock settings (baseline tolerance) + managed categories
+    window.__stockSettings = { tolerance: 10 };
+    window.__categories = [];
     try {
       const settingsList = await DB.getAll('settings');
-      const thresholds = settingsList.find(s => s.id === 'stockThresholds');
-      if (thresholds) {
-        window.__stockThresholds = {
-          high: thresholds.high ?? 80,
-          medium: thresholds.medium ?? 50,
-          low: thresholds.low ?? 10
-        };
-      } else {
-        window.__stockThresholds = { high: 80, medium: 50, low: 10 };
-      }
+      const stock = settingsList.find(s => s.id === 'stockSettings');
+      if (stock && stock.tolerance != null) window.__stockSettings = { tolerance: stock.tolerance };
+      const cats = settingsList.find(s => s.id === 'categories');
+      if (cats && Array.isArray(cats.list)) window.__categories = cats.list;
     } catch (e) {
-      console.error("Failed to load stock thresholds:", e);
-      window.__stockThresholds = { high: 80, medium: 50, low: 10 };
+      console.error("Failed to load settings:", e);
     }
 
     // Event delegation for stock chips quick edit
@@ -886,8 +945,15 @@ window.App = {
             const part = partsList.find(p => p.id === partId);
             if (!part) return;
             
+            const st = stockStatus(part.inStock || 0, part.needed || 0);
+            const refPhoto = part.refPhotos?.[st.status];
             openModal('Quick Edit Stock', `
               <div style="display:flex; flex-direction:column; gap:12px; padding: 10px 0;">
+                <div class="flex items-center gap-2">
+                  ${getStockChip(part.inStock || 0, part.needed || 0, '')}
+                  <span class="text-sm text-muted">${escapeHTML(st.label)}</span>
+                </div>
+                ${refPhoto ? `<div><div class="text-xs text-muted" style="margin-bottom:4px">Reference — what "${st.status} baseline" looks like:</div><img src="${refPhoto}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)"></div>` : ''}
                 <div>
                   <label class="form-label">In Stock</label>
                   <input type="number" id="quickInStock" class="form-input" value="${part.inStock || 0}" min="0">
@@ -925,8 +991,8 @@ window.App = {
               } else if (currentView === 'cnc' && window.CncModule) {
                 await CncModule.loadData();
                 CncModule.renderList();
-              } else if (currentView === 'dashboard') {
-                navigate('dashboard');
+              } else if (['dashboard', 'buy', 'containers', 'vendors'].includes(currentView)) {
+                navigate(currentView);
               }
             });
           } catch (err) {
