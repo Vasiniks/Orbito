@@ -56,6 +56,16 @@ const REQUIRED_ENV_KEYS = [
   'VITE_FIREBASE_APP_ID'
 ];
 
+const DEFAULT_CONFIG = {
+  VITE_FIREBASE_API_KEY: "AIzaSyDo47kaPkgNqF6PID07SxNyIi0D3wRcEZM",
+  VITE_FIREBASE_AUTH_DOMAIN: "orbito-a7c1d.firebaseapp.com",
+  VITE_FIREBASE_PROJECT_ID: "orbito-a7c1d",
+  VITE_FIREBASE_STORAGE_BUCKET: "orbito-a7c1d.firebasestorage.app",
+  VITE_FIREBASE_MESSAGING_SENDER_ID: "83395229819",
+  VITE_FIREBASE_APP_ID: "1:83395229819:web:7c99c516974781083f8ade",
+  VITE_FIREBASE_MEASUREMENT_ID: "G-H3238BRN5N"
+};
+
 async function loadFirebaseEnv() {
 
   // import.meta.env is a Vite/bundler-only API — it throws on plain HTTP servers.
@@ -90,10 +100,20 @@ async function loadFirebaseEnv() {
   try {
     const response = await fetch('./.env', { cache: 'no-store' });
     if (response.ok) {
-      return { ...buildEnv, ...parseEnvText(await response.text()) };
+      const text = await response.text();
+      // Avoid parsing HTML files that some servers return for 404s
+      if (!text.trim().startsWith('<!DOCTYPE') && !text.trim().startsWith('<html')) {
+        return { ...buildEnv, ...parseEnvText(text) };
+      }
     }
   } catch (error) {
     console.warn('Local .env file could not be loaded automatically.', error);
+  }
+
+  // Fallback if no valid configuration has been loaded
+  if (!REQUIRED_ENV_KEYS.every(key => buildEnv[key])) {
+    console.log('Using default fallback Firebase configuration');
+    return { ...DEFAULT_CONFIG, ...buildEnv };
   }
 
   return buildEnv;
