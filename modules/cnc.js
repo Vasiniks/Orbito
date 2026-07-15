@@ -69,11 +69,14 @@ const CncModule = {
   },
 
   queueItems() {
+    // Index parts/projects by id for O(1) joins instead of a scan per BOM item.
+    const partById = new Map(this.parts.map(p => [p.id, p]));
+    const projById = new Map(this.projects.map(p => [p.id, p]));
     return this.boms
       .filter(b => this.machineMatch(this.machineFilter, b.process))
       .filter(b => b.status !== 'not_used')
       .filter(b => this.showFinished || !BOM_DONE_STATUSES.includes(b.status))
-      .map(b => ({ b, part: this.parts.find(p => p.id === b.partId), proj: this.projects.find(p => p.id === b.projectId) }))
+      .map(b => ({ b, part: partById.get(b.partId), proj: projById.get(b.projectId) }))
       .sort((x, y) => (x.b.partNumber || '￿').localeCompare(y.b.partNumber || '￿', undefined, { numeric: true }));
   },
 

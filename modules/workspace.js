@@ -119,10 +119,17 @@ const WorkspaceModule = {
       return;
     }
 
+    // Tally parts/tools per zone in a single pass so each zone is an O(1)
+    // lookup instead of scanning every part and tool per zone.
+    const partsByLoc = new Map();
+    for (const p of this.parts) partsByLoc.set(p.locationId, (partsByLoc.get(p.locationId) || 0) + 1);
+    const toolsByLoc = new Map();
+    for (const t of this.tools) toolsByLoc.set(t.locationId, (toolsByLoc.get(t.locationId) || 0) + 1);
+
     map.innerHTML = this.locations.map(loc => {
-      const partsCount = this.parts.filter(p => p.locationId === loc.id).length;
-      const toolsCount = this.tools.filter(t => t.locationId === loc.id).length;
-      const hasPhoto = loc.photo ? `background-image:url('${loc.photo}');background-size:cover;background-position:center;` : '';
+      const partsCount = partsByLoc.get(loc.id) || 0;
+      const toolsCount = toolsByLoc.get(loc.id) || 0;
+      const hasPhoto = loc.photo ? `background-image:url('${safeImageSrc(loc.photo)}');background-size:cover;background-position:center;` : '';
       const containerCount = (loc.containers || []).length;
       
       return `

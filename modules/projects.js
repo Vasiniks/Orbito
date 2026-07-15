@@ -237,6 +237,9 @@ const ProjectsModule = {
       const active = boms.filter(b => b.status !== 'not_used').length;
       const pct = active ? Math.round((done / active) * 100) : 0;
       const statusMap = BOM_STATUS_MAP;
+      // Index parts by id so the BOM table joins in O(1) per row rather than
+      // scanning the full parts list for every line.
+      const partById = new Map(this.tabData.parts.map(p => [p.id, p]));
       content.innerHTML = `
         ${boms.length > 0 ? `
           <div class="flex items-center gap-3 mb-4" style="flex-wrap:wrap">
@@ -252,7 +255,7 @@ const ProjectsModule = {
             <thead><tr><th>Part</th>${this.tabData.subs.length ? '<th>Subsystem</th>' : ''}<th>Type</th><th>Qty</th><th>Status</th></tr></thead>
             <tbody>
               ${boms.map(b => {
-                const part = this.tabData.parts.find(pt => pt.id === b.partId);
+                const part = partById.get(b.partId);
                 const st = statusMap[b.status] || statusMap['not_started'];
                 const sub = this.tabData.subs.find(s => s.id === b.projectId);
                 const subCell = this.tabData.subs.length ? `<td data-label="Subsystem"><span class="chip"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i>${sub ? escapeHTML(sub.name) : 'Main'}</span></td>` : '';

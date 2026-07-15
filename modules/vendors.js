@@ -50,8 +50,17 @@ const VendorsModule = {
       return;
     }
 
+    // Group parts by vendor in a single pass so each card is an O(1) lookup
+    // instead of scanning every part per vendor.
+    const partsByVendor = new Map();
+    for (const p of this.parts) {
+      if (!p.vendorId) continue;
+      const arr = partsByVendor.get(p.vendorId);
+      if (arr) arr.push(p); else partsByVendor.set(p.vendorId, [p]);
+    }
+
     grid.innerHTML = filtered.map(v => {
-      const vParts = this.parts.filter(p => p.vendorId === v.id);
+      const vParts = partsByVendor.get(v.id) || [];
       const low = vParts.filter(p => stockStatus(p.inStock || 0, p.needed || 0).status === 'below').length;
       return `
         <div class="card" style="cursor:pointer" onclick="VendorsModule.showDetail('${v.id}')">

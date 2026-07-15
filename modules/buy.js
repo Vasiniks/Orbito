@@ -17,12 +17,13 @@ const BuyModule = {
 
   // Parts below baseline, with how many to buy to get back to baseline
   buyRows() {
+    const venById = new Map(this.vendors.map(v => [v.id, v]));
     return this.parts
       .filter(p => stockStatus(p.inStock || 0, p.needed || 0).status === 'below')
       .map(p => ({
         p,
         need: Math.max(0, (p.needed || 0) - (p.inStock || 0)),
-        vendor: this.vendors.find(v => v.id === p.vendorId) || null
+        vendor: venById.get(p.vendorId) || null
       }))
       .filter(r => this.vendorFilter === 'all'
         || (this.vendorFilter === 'none' ? !r.vendor : r.vendor?.id === this.vendorFilter))
@@ -38,7 +39,8 @@ const BuyModule = {
     const rows = this.buyRows();
     const allBelow = this.parts.filter(p => stockStatus(p.inStock || 0, p.needed || 0).status === 'below');
     const total = rows.reduce((s, r) => s + r.need * (r.p.unitCost || 0), 0);
-    const noVendorCount = allBelow.filter(p => !this.vendors.find(v => v.id === p.vendorId)).length;
+    const vendorIds = new Set(this.vendors.map(v => v.id));
+    const noVendorCount = allBelow.filter(p => !vendorIds.has(p.vendorId)).length;
 
     this.container.innerHTML = `
       <div class="toolbar">

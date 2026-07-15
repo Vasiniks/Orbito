@@ -36,6 +36,17 @@ const ContainersModule = {
     if (locFilter !== 'all') containers = containers.filter(c => c.locId === locFilter);
     if (q) containers = containers.filter(c => c.name.toLowerCase().includes(q));
 
+    // Group parts by their container in a single pass so each card is an O(1)
+    // lookup instead of re-scanning every part twice (once for count, once for
+    // the low-stock tally).
+    const partsByContainer = new Map();
+    for (const p of this.parts) {
+      if (!p.containerId) continue;
+      const key = p.locationId + '\u0000' + p.containerId;
+      const arr = partsByContainer.get(key);
+      if (arr) arr.push(p); else partsByContainer.set(key, [p]);
+    }
+
     this.container.innerHTML = `
       <div class="toolbar">
         <div class="toolbar-left">
@@ -61,8 +72,9 @@ const ContainersModule = {
         </div>` : `
         <div class="grid-auto" id="containersGrid">
           ${containers.map(c => {
-            const count = this.partsIn(c).length;
-            const low = this.partsIn(c).filter(p => stockStatus(p.inStock || 0, p.needed || 0).status === 'below').length;
+            const inC = partsByContainer.get(c.locId + '\u0000' + c.name) || [];
+            const count = inC.length;
+            const low = inC.filter(p => stockStatus(p.inStock || 0, p.needed || 0).status === 'below').length;
             return `
               <div class="card" style="overflow:hidden;cursor:pointer" onclick="ContainersModule.open('${escapeAttr(c.locId)}','${escapeAttr(c.name)}')">
                 <div class="container-card-photo" style="aspect-ratio:5/2">
