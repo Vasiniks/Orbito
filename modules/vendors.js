@@ -184,7 +184,7 @@ const VendorsModule = {
           <tbody>
             ${vParts.length === 0 ? '<tr><td colspan="6" class="text-center" style="padding:24px;color:var(--text-3)">No parts linked to this vendor yet — set the vendor on a part in the Parts Library.</td></tr>' : vParts.map(p => `
               <tr class="${stockStatus(p.inStock || 0, p.needed || 0).status === 'below' ? 'row-stock-low' : ''}">
-                <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${p.photo}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
+                <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${safeImageSrc(p.photo)}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
                 <td data-label="Name" style="font-weight:500"><a href="#" onclick="event.preventDefault();navigate('parts').then(()=>PartsModule.showPartDetail('${p.id}'))" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a></td>
                 <td data-label="Category"><span class="badge badge-gray">${escapeHTML(p.category || '—')}</span></td>
                 <td data-label="Stock">${getStockChip(p.inStock || 0, p.needed || 0, p.id)}</td>

@@ -1,0 +1,136 @@
+rules_version = '2';
+
+// Launchpad / Orbito — Firestore Security Rules
+// ---------------------------------------------------------------------------
+// The Firebase *web* config in auth.js is public (it ships in every browser).
+// These rules — NOT the API key — are what actually protect the database.
+//
+// Model (mirrors auth.js):
+//   • Users sign in with Google. A user document lives at /users/{uid} with
+//     { role: 'Student'|'Lead'|'Mentor', status: 'pending'|'approved', email }.
+//   • @1360.ca emails are auto-approved as Students; everyone else is 'pending'
+//     until a Mentor approves them.
+//   • Role hierarchy for writes: Mentor > Lead > Student (see AuthModule.canPerform).
+//
+// IMPORTANT — validate before deploying to production:
+//   Roles are stored in the user *document*, not in an auth custom claim, so the
+//   role helpers below use get()/exists() lookups (each costs one document read).
+//   Test these against the Firebase Emulator or a staging project first:
+//     firebase emulators:start --only firestore
+//   Deploy with:
+//     firebase deploy --only firestore:rules
+// ---------------------------------------------------------------------------
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers -----------------------------------------------------------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function selfDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasProfile() {
+      return signedIn()
+             && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // An approved member is any signed-in user whose profile status is 'approved'.
+    function isApproved() {
+      return hasProfile() && selfDoc().status == 'approved';
+    }
+
+    function role() {
+      return isApproved() ? selfDoc().role : 'none';
+    }
+
+    function isMentor() {
+      return role() == 'Mentor';
+    }
+
+    // Lead or Mentor — the "can edit build data" tier (canPerform: edit_parts,
+    // edit_projects, manage_workspace).
+    function isLeadOrUp() {
+      return role() == 'Mentor' || role() == 'Lead';
+    }
+
+    // Team email addresses are trusted to self-approve (matches isTeamEmail()).
+    function isTeamEmail() {
+      return signedIn()
+             && request.auth.token.email != null
+             && request.auth.token.email.matches('(?i).*@1360[.]ca');
+    }
+
+    // ---- Users -------------------------------------------------------------
+    // Readable by any approved member (the Accounts page lists the team).
+    // A user may create their OWN profile on first sign-in, but only as a
+    // Student, and may only self-set status to 'approved' if they are on the
+    // team domain (otherwise they start 'pending' and a Mentor approves them).
+    // A user may NOT escalate their own role or status; only Mentors can.
+    match /users/{userId} {
+      allow read: if isApproved();
+
+      allow create: if signedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == 'Student'
+                    && (
+                         request.resource.data.status == 'pending'
+                         || (request.resource.data.status == 'approved' && isTeamEmail())
+                       );
+
+      // Self-updates may not change role or status (prevents privilege
+      // escalation) — EXCEPT a team-domain user flipping their own pending
+      // profile to approved, which auth.js does on the next sign-in.
+      allow update: if isMentor()
+                    || (
+                         signedIn() && request.auth.uid == userId
+                         && request.resource.data.role == resource.data.role
+                         && (
+                              request.resource.data.status == resource.data.status
+                              || (request.resource.data.status == 'approved' && isTeamEmail())
+                            )
+                       );
+
+      allow delete: if isMentor();
+    }
+
+    // ---- Build data: parts, projects, BOM, locations, vendors --------------
+    // Read: any approved member. Write: Lead or Mentor (matches canPerform).
+    match /parts/{id}      { allow read: if isApproved(); allow write: if isLeadOrUp(); }
+    match /projects/{id}   { allow read: if isApproved(); allow write: if isLeadOrUp(); }
+    match /bom_items/{id}  { allow read: if isApproved(); allow write: if isLeadOrUp(); }
+    match /locations/{id}  { allow read: if isApproved(); allow write: if isLeadOrUp(); }
+    match /vendors/{id}    { allow read: if isApproved(); allow write: if isLeadOrUp(); }
+
+    // ---- Tools & tasks -----------------------------------------------------
+    // Students may check out tools and manage tasks (canPerform: checkout_tools,
+    // manage_tasks), so any approved member can write these.
+    match /tools/{id}      { allow read: if isApproved(); allow write: if isApproved(); }
+    match /tasks/{id}      { allow read: if isApproved(); allow write: if isApproved(); }
+
+    // ---- Settings ----------------------------------------------------------
+    // Stock tolerance, categories, and the floorplan are edited from the
+    // Settings page by any member; keep it approved-only rather than Mentor-only
+    // so the existing UI keeps working. Tighten to isMentor() if desired.
+    match /settings/{id}   { allow read: if isApproved(); allow write: if isApproved(); }
+
+    // ---- Activity, sessions, walk logs, pending actions --------------------
+    // Append-heavy audit/telemetry collections. Approved members may read the
+    // team feed and create/update their own records. Deletes are Mentor-only so
+    // history can't be quietly rewritten.
+    match /history/{id}         { allow read: if isApproved(); allow create, update: if isApproved(); allow delete: if isMentor(); }
+    match /sessions/{id}        { allow read: if isApproved(); allow create, update: if isApproved(); allow delete: if isMentor(); }
+    match /walk_logs/{id}       { allow read: if isApproved(); allow create, update: if isApproved(); allow delete: if isMentor(); }
+    match /pending_actions/{id} { allow read: if isApproved(); allow create, update: if isApproved(); allow delete: if isMentor(); }
+
+    // ---- Default deny ------------------------------------------------------
+    // Anything not matched above is denied. New collections must be added here
+    // explicitly rather than inheriting open access.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

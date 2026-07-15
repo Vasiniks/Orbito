@@ -66,7 +66,7 @@ const ContainersModule = {
             return `
               <div class="card" style="overflow:hidden;cursor:pointer" onclick="ContainersModule.open('${escapeAttr(c.locId)}','${escapeAttr(c.name)}')">
                 <div class="container-card-photo" style="aspect-ratio:5/2">
-                  ${c.photo ? `<img src="${c.photo}" alt="">` : '<i class="fa-solid fa-box-open" aria-hidden="true"></i>'}
+                  ${c.photo ? `<img src="${safeImageSrc(c.photo)}" alt="">` : '<i class="fa-solid fa-box-open" aria-hidden="true"></i>'}
                 </div>
                 <div class="card-body" style="padding:12px 14px">
                   <div class="flex items-center justify-between gap-2">
@@ -104,7 +104,7 @@ const ContainersModule = {
       <div class="flex gap-4 mb-4" style="flex-wrap:wrap;align-items:flex-start">
         <div style="width:260px;max-width:100%">
           <div class="container-card-photo" style="aspect-ratio:4/3;border-radius:var(--radius-lg);border:1px solid var(--border);cursor:${c.photo ? 'zoom-in' : 'default'}" id="contDetailPhoto">
-            ${c.photo ? `<img src="${c.photo}" alt="Photo of ${escapeAttr(c.name)}">` : '<i class="fa-solid fa-box-open" aria-hidden="true"></i>'}
+            ${c.photo ? `<img src="${safeImageSrc(c.photo)}" alt="Photo of ${escapeAttr(c.name)}">` : '<i class="fa-solid fa-box-open" aria-hidden="true"></i>'}
           </div>
         </div>
         <div style="flex:1;min-width:220px">
@@ -124,7 +124,7 @@ const ContainersModule = {
           <tbody>
             ${parts.length === 0 ? '<tr><td colspan="4" class="text-center" style="padding:24px;color:var(--text-3)">No parts assigned to this container yet.</td></tr>' : parts.map(p => `
               <tr>
-                <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${p.photo}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
+                <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${safeImageSrc(p.photo)}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
                 <td data-label="Name" style="font-weight:500"><a href="#" onclick="event.preventDefault();navigate('parts').then(()=>PartsModule.showPartDetail('${p.id}'))" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a></td>
                 <td data-label="Category"><span class="badge badge-gray">${escapeHTML(p.category || '—')}</span></td>
                 <td data-label="Stock">${getStockChip(p.inStock || 0, p.needed || 0, p.id)}</td>
@@ -162,7 +162,7 @@ const ContainersModule = {
       <div class="form-group">
         <label class="form-label">Photo <span class="text-muted">(what/where it is)</span></label>
         <label class="photo-upload" id="contPhotoUpload" style="aspect-ratio:2/1">
-          ${existing?.photo ? `<img src="${existing.photo}">` : '<i class="fa-solid fa-camera"></i><span>Upload</span>'}
+          ${existing?.photo ? `<img src="${safeImageSrc(existing.photo)}">` : '<i class="fa-solid fa-camera"></i><span>Upload</span>'}
           <input type="file" accept="image/*" id="contPhotoInput">
         </label>
       </div>
@@ -178,7 +178,7 @@ const ContainersModule = {
         const file = e.target.files[0];
         if (!file) return;
         photo = await readFileAsDataURL(file);
-        document.getElementById('contPhotoUpload').innerHTML = `<img src="${photo}"><input type="file" accept="image/*" id="contPhotoInput2">`;
+        document.getElementById('contPhotoUpload').innerHTML = `<img src="${safeImageSrc(photo)}"><input type="file" accept="image/*" id="contPhotoInput2">`;
         wirePhotoInput('contPhotoInput2');
       });
     };

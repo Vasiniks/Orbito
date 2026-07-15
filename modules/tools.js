@@ -64,7 +64,7 @@ const ToolsModule = {
       return `
         <div class="card">
           <div style="height:120px;background:var(--bg-3);border-radius:var(--radius-lg) var(--radius-lg) 0 0;overflow:hidden;position:relative">
-            ${t.photo ? `<img src="${t.photo}" style="width:100%;height:100%;object-fit:cover">` : '<div class="flex items-center justify-center h-full text-muted"><i class="fa-solid fa-wrench fa-2x"></i></div>'}
+            ${t.photo ? `<img src="${safeImageSrc(t.photo)}" style="width:100%;height:100%;object-fit:cover">` : '<div class="flex items-center justify-center h-full text-muted"><i class="fa-solid fa-wrench fa-2x"></i></div>'}
             <div style="position:absolute;top:10px;right:10px">
               <span class="badge badge-${condColors[t.condition] || 'gray'}">${condLabels[t.condition] || 'Good'}</span>
             </div>
@@ -100,7 +100,7 @@ const ToolsModule = {
         <div class="flex gap-4">
           <div style="width:120px">
             <label class="photo-upload" id="toolPhotoUpload">
-              ${t.photo ? `<img src="${t.photo}">` : '<i class="fa-solid fa-camera"></i><span>Photo</span>'}
+              ${t.photo ? `<img src="${safeImageSrc(t.photo)}">` : '<i class="fa-solid fa-camera"></i><span>Photo</span>'}
               <input type="file" accept="image/*" id="toolPhotoInput">
             </label>
           </div>
@@ -137,7 +137,7 @@ const ToolsModule = {
       const file = e.target.files[0];
       if (file) {
         currentPhoto = await readFileAsDataURL(file);
-        document.getElementById('toolPhotoUpload').innerHTML = `<img src="${currentPhoto}"><input type="file" accept="image/*" id="toolPhotoInput">`;
+        document.getElementById('toolPhotoUpload').innerHTML = `<img src="${safeImageSrc(currentPhoto)}"><input type="file" accept="image/*" id="toolPhotoInput">`;
       }
     });
 

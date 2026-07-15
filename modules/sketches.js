@@ -65,7 +65,7 @@ const SketchesModule = {
     grid.innerHTML = filtered.map(s => `
       <div class="card" style="cursor:pointer; overflow:hidden; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${s.partId}'))">
         <div style="aspect-ratio: 4/3; background: var(--bg-1); display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border);">
-          <img src="${s.image}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          <img src="${safeImageSrc(s.image)}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
         </div>
         <div class="card-body" style="padding: 12px;">
           <div class="text-sm font-medium truncate">${escapeHTML(s.partName)}</div>

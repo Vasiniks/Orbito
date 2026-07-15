@@ -250,6 +250,24 @@ function escapeAttr(str) {
     .replace(/`/g, '&#96;');
 }
 
+// safeImageSrc guards a value that will be interpolated into an <img src="…">
+// attribute. Image fields (photos, drawings, reference photos, floorplans) are
+// user-supplied and can arrive via JSON/CSV import, so a crafted value like
+//   x" onerror="…
+// would otherwise break out of the attribute and execute (stored XSS). We allow
+// only data:image/* and http(s) URLs and escape the result; anything else
+// (including javascript: URLs) renders as an empty src. Legitimate base64 data
+// URLs and normal links pass through unchanged.
+function safeImageSrc(src) {
+  if (typeof src !== 'string') return '';
+  const s = src.trim();
+  if (/^data:image\//i.test(s) || /^https?:\/\//i.test(s)) {
+    return escapeAttr(s);
+  }
+  return '';
+}
+window.safeImageSrc = safeImageSrc;
+
 // Centralized UUID helper. Falls back to Math.random when crypto.randomUUID
 // isn't available (older browsers or insecure contexts).
 function uid() {
@@ -953,7 +971,7 @@ window.App = {
                   ${getStockChip(part.inStock || 0, part.needed || 0, '')}
                   <span class="text-sm text-muted">${escapeHTML(st.label)}</span>
                 </div>
-                ${refPhoto ? `<div><div class="text-xs text-muted" style="margin-bottom:4px">Reference — what "${st.status} baseline" looks like:</div><img src="${refPhoto}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)"></div>` : ''}
+                ${refPhoto ? `<div><div class="text-xs text-muted" style="margin-bottom:4px">Reference — what "${st.status} baseline" looks like:</div><img src="${safeImageSrc(refPhoto)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)"></div>` : ''}
                 <div>
                   <label class="form-label">In Stock</label>
                   <input type="number" id="quickInStock" class="form-input" value="${part.inStock || 0}" min="0">

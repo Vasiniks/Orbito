@@ -35,7 +35,7 @@ const WorkspaceModule = {
       
       <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
         <div style="flex:1;min-width:300px">
-          <div class="ws-map" id="workspaceMap" style="background-image:url('${this.floorplan || ''}'); background-size:contain; background-position:center; background-repeat:no-repeat;"></div>
+          <div class="ws-map" id="workspaceMap" style="background-image:url('${safeImageSrc(this.floorplan)}'); background-size:contain; background-position:center; background-repeat:no-repeat;"></div>
           <div class="mt-4 flex gap-4 text-sm text-muted" style="flex-wrap:wrap">
             <div class="flex items-center gap-2"><span style="width:12px;height:12px;border-radius:2px;background:#3b82f6"></span> Storage</div>
             <div class="flex items-center gap-2"><span style="width:12px;height:12px;border-radius:2px;background:#10b981"></span> Workspace</div>
@@ -164,7 +164,7 @@ const WorkspaceModule = {
         <div class="form-group">
           <label class="form-label">Zone Photo</label>
           <div class="flex items-center gap-3">
-            ${loc.photo ? `<img src="${loc.photo}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">` : ''}
+            ${loc.photo ? `<img src="${safeImageSrc(loc.photo)}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">` : ''}
             <label class="btn btn-secondary btn-sm" style="cursor:pointer">
               <i class="fa-solid fa-camera"></i> ${loc.photo ? 'Change' : 'Upload'} Photo
               <input type="file" accept="image/*" id="zonePhotoInput" style="display:none">
@@ -293,7 +293,7 @@ const WorkspaceModule = {
 
         ${loc.photo ? `
           <div style="margin-top:12px;position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-            <img src="${loc.photo}" style="width:100%;display:block">
+            <img src="${safeImageSrc(loc.photo)}" style="width:100%;display:block">
             ${containers.map((c, i) => {
               const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
               const color = colors[i % colors.length];
@@ -361,7 +361,7 @@ const WorkspaceModule = {
             <div class="walk-step-icon"><i class="fa-solid fa-location-dot" style="font-size:32px;color:${loc.color}"></i></div>
             <h3 style="margin:12px 0 4px">${escapeHTML(loc.name)}</h3>
             <span class="badge badge-gray">${loc.type}</span>
-            ${loc.photo ? `<img src="${loc.photo}" class="walk-photo" style="margin-top:12px;width:100%;max-height:300px;object-fit:cover;border-radius:8px">` : '<p class="text-muted mt-4">No photo available for this zone.</p>'}
+            ${loc.photo ? `<img src="${safeImageSrc(loc.photo)}" class="walk-photo" style="margin-top:12px;width:100%;max-height:300px;object-fit:cover;border-radius:8px">` : '<p class="text-muted mt-4">No photo available for this zone.</p>'}
             <p class="text-sm text-muted mt-3">Head to this area in your workspace.</p>
           </div>
         `;
@@ -376,14 +376,14 @@ const WorkspaceModule = {
             ${container.photo ? `
               <div style="margin-top:12px;width:100%">
                 <div class="text-xs text-muted" style="margin-bottom:4px;text-align:left">The container:</div>
-                <img src="${container.photo}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)" alt="Photo of ${escapeAttr(container.name)}">
+                <img src="${safeImageSrc(container.photo)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)" alt="Photo of ${escapeAttr(container.name)}">
               </div>
             ` : ''}
             ${loc.photo ? `
               <div style="width:100%">
                 <div class="text-xs text-muted" style="margin:12px 0 4px;text-align:left">Where it is in ${escapeHTML(loc.name)}:</div>
                 <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-                  <img src="${loc.photo}" style="width:100%;display:block;${hasBox ? 'filter:brightness(0.5)' : ''}">
+                  <img src="${safeImageSrc(loc.photo)}" style="width:100%;display:block;${hasBox ? 'filter:brightness(0.5)' : ''}">
                   ${hasBox ? `<div style="position:absolute;left:${container.x}%;top:${container.y}%;width:${container.w}%;height:${container.h}%;border:3px solid #3b82f6;background:rgba(59,130,246,0.3);border-radius:4px;animation:pulse-border 1.5s infinite"></div>` : ''}
                 </div>
               </div>

@@ -1,10 +1,19 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "firestore.rules",
+      "**/*.md",
+      "**/*.py",
+      "**/*.txt",
+      "user_goals.txt",
+      "Launchpad_Features_List.pdf"
     ],
     "headers": [
       {

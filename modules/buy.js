@@ -78,7 +78,7 @@ const BuyModule = {
             <tbody>
               ${rows.map(({ p, need, vendor }) => `
                 <tr>
-                  <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${p.photo}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
+                  <td data-label="Photo">${p.photo ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" aria-label="Expand photo"><img src="${safeImageSrc(p.photo)}" alt=""></button>` : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}</td>
                   <td data-label="Part" style="font-weight:500"><a href="#" onclick="event.preventDefault();navigate('parts').then(()=>PartsModule.showPartDetail('${p.id}'))" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a></td>
                   <td data-label="Category"><span class="badge badge-gray">${escapeHTML(p.category || '—')}</span></td>
                   <td data-label="Stock">${getStockChip(p.inStock || 0, p.needed || 0, p.id)}</td>
