@@ -1,4 +1,4 @@
-// Launchpad — App Shell: routing, utilities, dashboard, settings
+// Orbito — App Shell: routing, utilities, dashboard, settings
 
 // ── Module Registry ──
 const MODULES = {
@@ -16,7 +16,16 @@ const MODULES = {
   spreadsheet: { title: 'Master Spreadsheet', render: (c) => SpreadsheetModule.render(c) },
   sketches:  { title: 'Global Sketches', render: (c) => SketchesModule.render(c) },
   search:    { title: 'Find / Search', render: (c) => SearchModule.render(c) },
+  configure: { title: 'Configure', render: (c) => ConfigureModule.render(c) },
   settings:  { title: 'Settings',  render: renderSettings },
+};
+
+// Hide sidebar tabs the team has turned off in Configure
+window.applyTabVisibility = function () {
+  const hidden = window.__hiddenTabs || [];
+  document.querySelectorAll('.sidebar-nav .nav-item[data-view]').forEach(el => {
+    el.style.display = hidden.includes(el.dataset.view) ? 'none' : '';
+  });
 };
 
 let currentView = 'dashboard';
@@ -387,6 +396,7 @@ const VIEW_HELP = {
   spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, cost, location, and notes edit in place. The Data menu imports/exports CSV and JSON and auto-numbers parts missing an ID.',
   sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
   search: 'Search across parts and projects. Tip: press Ctrl/Cmd+K from anywhere.',
+  configure: 'One place for shared dropdown data — categories, materials, and machines — plus which sidebar tabs your team actually sees. Changes apply for everyone.',
   settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
 };
 
@@ -467,7 +477,7 @@ async function renderDashboard(container) {
           </a>
           <a class="gs-step" href="#settings" onclick="event.preventDefault();navigate('settings')">
             <div class="gs-step-num"><i class="fa-solid fa-flask" style="font-size:11px"></i></div>
-            <div><div class="gs-step-title">…or load sample data</div><div class="gs-step-sub">Explore Launchpad with a realistic demo database (Settings → Sample Data).</div></div>
+            <div><div class="gs-step-title">…or load sample data</div><div class="gs-step-sub">Explore Orbito with a realistic demo database (Settings → Sample Data).</div></div>
           </a>
         </div>
         <button class="btn btn-secondary btn-sm mt-3" onclick="TourModule.start()"><i class="fa-solid fa-wand-magic-sparkles"></i> Take the tour</button>
@@ -902,7 +912,7 @@ async function renderSettings(container) {
   });
 
   document.getElementById('clearBtn').addEventListener('click', async () => {
-    if (confirm('Are you sure you want to permanently delete all data from Launchpad? This cannot be undone.')) {
+    if (confirm('Are you sure you want to permanently delete all data from Orbito? This cannot be undone.')) {
       const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'users', 'tasks', 'settings', 'bom_items'];
       for (const store of stores) {
         await DB.clearStore(store);
@@ -919,18 +929,28 @@ window.App = {
     const savedTheme = localStorage.getItem('launchpad-theme');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Load stock settings (baseline tolerance) + managed categories
+    // Load stock settings (baseline tolerance) + configurable dropdown lists
     window.__stockSettings = { tolerance: 10 };
     window.__categories = [];
+    window.__materials = [];
+    window.__machines = [];
+    window.__hiddenTabs = [];
     try {
       const settingsList = await DB.getAll('settings');
       const stock = settingsList.find(s => s.id === 'stockSettings');
       if (stock && stock.tolerance != null) window.__stockSettings = { tolerance: stock.tolerance };
       const cats = settingsList.find(s => s.id === 'categories');
       if (cats && Array.isArray(cats.list)) window.__categories = cats.list;
+      const mats = settingsList.find(s => s.id === 'materials');
+      if (mats && Array.isArray(mats.list)) window.__materials = mats.list;
+      const machines = settingsList.find(s => s.id === 'machines');
+      if (machines && Array.isArray(machines.list)) window.__machines = machines.list;
+      const ui = settingsList.find(s => s.id === 'ui');
+      if (ui && Array.isArray(ui.hiddenTabs)) window.__hiddenTabs = ui.hiddenTabs;
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
+    applyTabVisibility();
 
     // Event delegation for stock chips quick edit
     document.body.addEventListener('click', async (e) => {
@@ -1085,100 +1105,6 @@ window.App = {
       navigate(location.hash.slice(1) || 'dashboard');
     });
 
-async function showQuickAddSketchModal() {
-  const parts = await DB.getAll('parts');
-  if (parts.length === 0) {
-    toast("Please add at least one part first.", "error");
-    return;
-  }
-  const partOptions = parts.map(p => `<option value="${escapeAttr(p.id)}">${escapeHTML(p.name)}</option>`).join('');
-  
-  openModal('Quick Add Sketch', `
-    <div style="display:flex; flex-direction:column; gap:12px; padding: 10px 0;">
-      <div class="form-group">
-        <label class="form-label">Select Part</label>
-        <select class="form-select" id="quickSketchPartSelect">
-          ${partOptions}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Sketch Canvas</label>
-        <div class="sketch-canvas-wrap">
-          <canvas id="quickSketchCanvas" width="400" height="300" style="display:block;width:100%;cursor:crosshair" aria-label="Sketch drawing canvas"></canvas>
-        </div>
-      </div>
-    </div>
-  `, `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-secondary" onclick="window.clearQuickSketch()">Clear</button>
-    <button class="btn btn-primary" onclick="window.saveQuickSketch()">Save Sketch</button>
-  `);
-
-  setTimeout(() => {
-    const canvas = document.getElementById('quickSketchCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-
-    const getPos = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-    };
-
-    const start = (e) => { e.preventDefault(); drawing = true; const {x,y} = getPos(e); ctx.beginPath(); ctx.moveTo(x,y); };
-    const move = (e) => { e.preventDefault(); if (!drawing) return; const {x,y} = getPos(e); ctx.lineTo(x,y); ctx.stroke(); };
-    const stop = (e) => { if(e.cancelable) e.preventDefault(); drawing = false; };
-
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', move);
-    canvas.addEventListener('mouseup', stop);
-    canvas.addEventListener('mouseout', stop);
-
-    canvas.addEventListener('touchstart', start, {passive:false});
-    canvas.addEventListener('touchmove', move, {passive:false});
-    canvas.addEventListener('touchend', stop);
-
-    window.clearQuickSketch = () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    };
-
-    window.saveQuickSketch = async () => {
-      const partId = document.getElementById('quickSketchPartSelect').value;
-      const dataUrl = canvas.toDataURL('image/png');
-      const partsList = await DB.getAll('parts');
-      const p = partsList.find(x => x.id === partId);
-      if (!p) return;
-      p.drawings = p.drawings || [];
-      p.drawings.push(dataUrl);
-      await DB.put('parts', p);
-      toast('Sketch saved to drawings!', 'success');
-      if (window.HistoryModule) {
-        HistoryModule.log('update', 'part', partId, p.name, 'Added quick sketch');
-      }
-      closeModal();
-      if (currentView === 'sketches' && window.SketchesModule) {
-        await SketchesModule.loadData();
-        SketchesModule.renderView();
-      } else if (currentView === 'parts' && window.PartsModule) {
-        await PartsModule.loadData();
-        PartsModule.renderView();
-      }
-    };
-  }, 100);
-}
-window.showQuickAddSketchModal = showQuickAddSketchModal;
 
     // Global FAB
     const fab = document.getElementById('globalFab');
@@ -1193,10 +1119,6 @@ window.showQuickAddSketchModal = showQuickAddSketchModal;
           <button class="qa-tile" onclick="closeModal();navigate('projects').then(()=>document.getElementById('addProjectBtn').click())">
             <i class="fa-solid fa-folder-plus text-amber" aria-hidden="true"></i>
             <span>Project</span>
-          </button>
-          <button class="qa-tile" onclick="closeModal();window.showQuickAddSketchModal()">
-            <i class="fa-solid fa-pen-nib text-rose" aria-hidden="true"></i>
-            <span>Sketch</span>
           </button>
         </div>
       `, '');

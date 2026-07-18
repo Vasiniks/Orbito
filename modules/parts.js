@@ -243,7 +243,7 @@ const PartsModule = {
                 ${this.col('photo') ? `<td data-label="Photo">
                   ${p.photo
                     ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" title="Expand photo" aria-label="Expand photo of ${escapeAttr(p.name)}"><img src="${p.photo}" alt=""></button>`
-                    : '<div class="part-thumb part-thumb-empty"><i class="fa-solid fa-image" aria-hidden="true"></i></div>'}
+                    : `<button class="part-thumb part-thumb-empty" onclick="toast('No photo for this part yet — add one via Edit.', 'info')" title="Photo unavailable" aria-label="No photo for ${escapeAttr(p.name)}"><i class="fa-solid fa-image" aria-hidden="true"></i></button>`}
                 </td>` : ''}
                 <td data-label="Name" style="font-weight:500">
                   <a href="#" class="${nameCls}" onclick="event.preventDefault();PartsModule.showPartDetail('${p.id}')" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a>
@@ -622,7 +622,6 @@ const PartsModule = {
       <div class="tab-group mb-4">
         <button class="tab-btn active" onclick="PartsModule._switchDetailTab('info', this)">Info</button>
         <button class="tab-btn" onclick="PartsModule._switchDetailTab('drawings', this)">Drawings (${drawings.length})</button>
-        <button class="tab-btn" onclick="PartsModule._switchDetailTab('sketch', this); PartsModule._initSketchCanvas();">Sketch Pad</button>
       </div>
 
       <div id="partDetailInfo">
@@ -648,17 +647,6 @@ const PartsModule = {
         `}
         ${p.onshapeUrl ? `<a href="${escapeAttr(p.onshapeUrl)}" target="_blank" class="btn btn-secondary btn-sm mt-3"><i class="fa-solid fa-cube"></i> Open in Onshape</a>` : ''}
       </div>
-
-      <div id="partDetailSketch" style="display:none">
-        <p class="text-sm text-muted mb-2">Draw a quick sketch or diagram for this part.</p>
-        <div class="sketch-canvas-wrap">
-          <canvas id="sketchCanvas" width="400" height="300" style="display:block;width:100%;cursor:crosshair" aria-label="Sketch drawing canvas"></canvas>
-        </div>
-        <div class="sketch-actions">
-          <button class="btn btn-ghost" onclick="PartsModule._clearSketch()"><i class="fa-solid fa-eraser"></i> Clear</button>
-          <button class="btn btn-primary" onclick="PartsModule._saveSketch('${p.id}')"><i class="fa-solid fa-floppy-disk"></i> Save to Drawings</button>
-        </div>
-      </div>
     `, `
       ${p.locationId ? `<button class="btn btn-secondary" onclick="closeModal();PartsModule.findPart('${p.id}')"><i class="fa-solid fa-route"></i> Find Part</button>` : ''}
       <div style="flex:1"></div>
@@ -671,71 +659,6 @@ const PartsModule = {
     btn.classList.add('active');
     document.getElementById('partDetailInfo').style.display = tab === 'info' ? '' : 'none';
     document.getElementById('partDetailDrawings').style.display = tab === 'drawings' ? '' : 'none';
-    document.getElementById('partDetailSketch').style.display = tab === 'sketch' ? '' : 'none';
-  },
-
-  _initSketchCanvas() {
-    const canvas = document.getElementById('sketchCanvas');
-    if (!canvas || canvas.dataset.init) return;
-    canvas.dataset.init = 'true';
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-
-    const getPos = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-    };
-
-    const start = (e) => { e.preventDefault(); drawing = true; const { x, y } = getPos(e); ctx.beginPath(); ctx.moveTo(x, y); };
-    const move = (e) => { e.preventDefault(); if (!drawing) return; const { x, y } = getPos(e); ctx.lineTo(x, y); ctx.stroke(); };
-    const stop = (e) => { if (e.cancelable) e.preventDefault(); drawing = false; };
-
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', move);
-    canvas.addEventListener('mouseup', stop);
-    canvas.addEventListener('mouseout', stop);
-
-    canvas.addEventListener('touchstart', start, { passive: false });
-    canvas.addEventListener('touchmove', move, { passive: false });
-    canvas.addEventListener('touchend', stop);
-  },
-
-  _clearSketch() {
-    const canvas = document.getElementById('sketchCanvas');
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-  },
-
-  async _saveSketch(id) {
-    const canvas = document.getElementById('sketchCanvas');
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    const p = this.parts.find(x => x.id === id);
-    if (!p) return;
-
-    p.drawings = p.drawings || [];
-    p.drawings.push(dataUrl);
-    await DB.put('parts', p);
-    toast('Sketch saved to drawings!', 'success');
-    HistoryModule.log('update', 'part', id, p.name, 'Added sketch');
-
-    this._clearSketch();
-    closeModal();
-    this.showPartDetail(id);
   },
 
   async findPart(id) {

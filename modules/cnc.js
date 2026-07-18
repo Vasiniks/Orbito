@@ -114,8 +114,8 @@ const CncModule = {
             ${items.map(({ b, part, proj }) => {
               const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP[bomLadder(b)[0]];
               const isDone = BOM_DONE_STATUSES.includes(b.status);
-              const rowCls = isDone ? 'row-not-used' : '';
               const color = proj?.parentId ? subsystemColor(proj) : 'gray';
+              const rowCls = (isDone ? 'row-not-used' : '') + (color === 'gray' ? '' : ' row-sub-' + color);
               return `
                 <tr class="${rowCls}">
                   <td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>

@@ -84,6 +84,13 @@ const DB = {
   _ready: {},
   _unsubs: {},
 
+  // Read-cost control: unbounded-growth collections (activity feed, session
+  // logs) only sync their most recent slice instead of every doc ever written.
+  _LISTENER_LIMITS: {
+    history: { orderByField: 'timestamp', limit: 200 },
+    sessions: { orderByField: 'startedAt', limit: 50 },
+  },
+
   isOffline() {
     return !!window.__launchpad_offline || !window.fsdb || !window.FirebaseMethods;
   },
@@ -94,12 +101,20 @@ const DB = {
     return { db: window.fsdb, f: window.FirebaseMethods };
   },
 
+  _buildQuery(f, db, storeName) {
+    const lim = this._LISTENER_LIMITS[storeName];
+    if (lim && f.orderBy && f.limit) {
+      return f.query(f.collection(db, storeName), f.orderBy(lim.orderByField, 'desc'), f.limit(lim.limit));
+    }
+    return f.query(f.collection(db, storeName));
+  },
+
   _watch(storeName) {
     if (this._ready[storeName]) return this._ready[storeName];
     const { db, f } = this.getFs();
     this._ready[storeName] = new Promise((resolve, reject) => {
       let settled = false;
-      this._unsubs[storeName] = f.onSnapshot(f.query(f.collection(db, storeName)), (snap) => {
+      this._unsubs[storeName] = f.onSnapshot(this._buildQuery(f, db, storeName), (snap) => {
         const results = [];
         snap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
         this._cache[storeName] = results;
@@ -205,7 +220,7 @@ const DB = {
         version: 2,
         piiIncluded: !excludePII,
         exportDate: new Date().toISOString(),
-        app: 'Launchpad'
+        app: 'Orbito'
       }
     };
     for (const store of stores) {
@@ -272,3 +287,4 @@ const DB = {
 };
 
 window.DB = DB;
+window.LocalDB = LocalDB;

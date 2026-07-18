@@ -3,8 +3,8 @@ const TourModule = {
   steps: [
     {
       target: null,
-      title: 'Welcome to Launchpad! 👋',
-      body: 'Launchpad keeps your team\'s parts, projects, tools, and people in one place. This quick tour shows you around — it takes about a minute.',
+      title: 'Welcome to Orbito! 👋',
+      body: 'Orbito keeps your team\'s parts, projects, tools, and people in one place. This quick tour shows you around — it takes about a minute.',
     },
     {
       target: '.sidebar-nav',
@@ -33,7 +33,7 @@ const TourModule = {
     {
       target: '[data-view="workspace"]',
       title: 'Workspace Map',
-      body: 'Upload a floorplan, draw zones, and Launchpad can walk anyone to the exact container a part lives in.',
+      body: 'Upload a floorplan, draw zones, and Orbito can walk anyone to the exact container a part lives in.',
       openSidebar: true,
     },
     {

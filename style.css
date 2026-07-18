@@ -797,18 +797,31 @@ tr.row-stock-low td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 tr.row-not-used td { opacity: 0.5; }
 tr.row-not-used:hover td { opacity: 0.8; }
 
-/* ══════════ Brand logo (team logo on a white chip so it works on every theme) ══════════ */
+/* ══════════ Brand (team logo on a fixed orange block — identical in every theme) ══════════ */
 .brand-logo {
   display: inline-flex; align-items: center; justify-content: center;
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  padding: 3px 6px;
+  background: transparent;
   height: 30px;
   flex-shrink: 0;
 }
 .brand-logo img { height: 100%; width: auto; display: block; }
-.brand-logo-lg { height: 38px; padding: 4px 8px; }
+.brand-logo-lg { height: 38px; }
+
+/* Sidebar top-left corner: solid #f59e0b so the transparent logo reads everywhere */
+.sidebar-brand {
+  background: #f59e0b;
+  border-bottom: 1px solid rgba(0,0,0,0.15);
+}
+.sidebar-brand-name { color: #111113; }
+
+/* Landing / pending brand: same orange treatment as a pill */
+.auth-brand {
+  background: #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 8px 14px;
+  display: inline-flex;
+}
+.auth-brand-name { color: #111113; }
 
 /* ══════════ Lightbox (click photos to expand) ══════════ */
 .lightbox {
@@ -912,6 +925,16 @@ tr.row-not-used:hover td { opacity: 0.8; }
 .filter-chip.sub-chip-cyan.active   { background: var(--cyan-dim);   border-color: var(--cyan);   color: var(--cyan); }
 .filter-chip.sub-chip-rose.active   { background: var(--rose-dim);   border-color: var(--rose);   color: var(--rose); }
 .filter-chip.sub-chip-red.active    { background: var(--red-dim);    border-color: var(--red);    color: var(--red); }
+
+/* ══════════ Subsystem row tints — whole row carries its subsystem's color ══════════ */
+/* Selectors outrank the .spreadsheet-table zebra striping (and match plain tables too) */
+table tbody tr.row-sub-blue,   .spreadsheet-table tbody tr.row-sub-blue   { background: rgba(59,130,246,0.07); }
+table tbody tr.row-sub-green,  .spreadsheet-table tbody tr.row-sub-green  { background: rgba(16,185,129,0.07); }
+table tbody tr.row-sub-amber,  .spreadsheet-table tbody tr.row-sub-amber  { background: rgba(245,158,11,0.07); }
+table tbody tr.row-sub-purple, .spreadsheet-table tbody tr.row-sub-purple { background: rgba(139,92,246,0.07); }
+table tbody tr.row-sub-cyan,   .spreadsheet-table tbody tr.row-sub-cyan   { background: rgba(6,182,212,0.07); }
+table tbody tr.row-sub-rose,   .spreadsheet-table tbody tr.row-sub-rose   { background: rgba(244,63,94,0.07); }
+table tbody tr.row-sub-red,    .spreadsheet-table tbody tr.row-sub-red    { background: rgba(239,68,68,0.07); }
 
 /* ══════════ Subsystem group divider rows ══════════ */
 tr.ss-group td {

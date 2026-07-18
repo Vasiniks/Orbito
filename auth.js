@@ -1,7 +1,7 @@
 // auth.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 function parseEnvText(text) {
   const parsed = {};
@@ -175,7 +175,7 @@ try {
     // Export to window for db.js and modules
     window.fsdb = db;
     window.FirebaseMethods = {
-      collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch
+      collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch
     };
     firebaseAvailable = true;
     console.log("Firebase initialized successfully");
@@ -217,9 +217,9 @@ window.AuthModule = {
       };
       this.currentSession = session;
 
-      // Local write (always)
-      if (window.DB && window.DB.add) {
-        window.DB.add('sessions', session).catch(e => console.warn('Local session write failed:', e));
+      // Local write (always local-only — the cloud mirror below handles online)
+      if (window.LocalDB && window.LocalDB.put) {
+        window.LocalDB.put('sessions', { ...session }).catch(e => console.warn('Local session write failed:', e));
       }
 
       // Activity feed (always)
@@ -237,14 +237,16 @@ window.AuthModule = {
         }
       }
 
-      // Heartbeat: keep lastActiveAt fresh while the page is open
+      // Heartbeat: keep lastActiveAt fresh while the page is open.
+      // Local-only and infrequent — a Firestore write per minute per open tab
+      // was burning read/write quota for a timestamp nothing displays.
       this._heartbeatTimer = setInterval(() => {
         if (!this.currentSession) return;
         this.currentSession.lastActiveAt = Date.now();
-        if (window.DB && window.DB.put) {
-          window.DB.put('sessions', this.currentSession).catch(() => {});
+        if (window.LocalDB && window.LocalDB.put) {
+          window.LocalDB.put('sessions', { ...this.currentSession }).catch(() => {});
         }
-      }, 60_000);
+      }, 300_000);
       // Don't let the heartbeat keep the page alive after we tab away.
       if (typeof window !== 'undefined') {
         window.addEventListener('beforeunload', () => {
@@ -264,7 +266,7 @@ window.AuthModule = {
       session.endedAt = Date.now();
       session.endReason = reason || 'user';
       // Local
-      await window.DB.put('sessions', session).catch(e => console.warn('Local session end write failed:', e));
+      await window.LocalDB.put('sessions', { ...session }).catch(e => console.warn('Local session end write failed:', e));
       // Activity
       await window.HistoryModule.log('signout', 'session', session.id, userName, `${session.mode} · ${session.platform} (${reason || 'user'})`).catch(() => {});
       // Cloud mirror (best-effort)

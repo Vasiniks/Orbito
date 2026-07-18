@@ -213,11 +213,12 @@ const ProjectsModule = {
           <div class="grid-3">
             ${this.tabData.subs.map(sub => {
               const subBoms = this.tabData.allBoms ? this.tabData.allBoms.filter(b => b.projectId === sub.id) : [];
+              const subColor = subsystemColor(sub);
               return `
-              <div class="card">
+              <div class="card" style="border-top:3px solid var(--${subColor === 'amber' ? 'accent' : subColor})">
                 <div class="card-body">
                   <div class="flex items-center justify-between mb-2">
-                    <h4 style="font-weight:600" class="truncate">${sub.code ? `<span class="pn mono" style="margin-right:6px">${escapeHTML(sub.code)}</span>` : ''}${escapeHTML(sub.name)}</h4>
+                    <h4 style="font-weight:600" class="truncate">${sub.code ? `<span class="pn mono tint-${subColor}" style="margin-right:6px">${escapeHTML(sub.code)}</span>` : ''}${escapeHTML(sub.name)}</h4>
                     <span class="badge badge-gray">${sub.status || 'active'}</span>
                   </div>
                   <p class="text-sm text-muted truncate">${escapeHTML(sub.description || 'No description')}</p>

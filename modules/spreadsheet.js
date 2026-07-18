@@ -6,6 +6,14 @@ const BOM_MACHINES = ['CNC Router', 'CNC Mill', 'Lathe', 'Manual Mill', '3D Prin
 const SS_MATERIALS = ['1/16" Aluminum - Sheet', '1/8" Aluminum - Sheet', '3/16" Aluminum - Sheet', '1/4" Aluminum - Sheet', '1x1 Aluminum Boxtube', '1x2 Aluminum Boxtube', '1/2" Aluminum - Hex', '3/8" Aluminum - Rod', '1" Aluminum - Angle', '3mm Polycarbonate', '6mm Polycarbonate', 'UHMW', 'Delrin / Acetal', 'PLA', 'PETG', 'ABS', 'CF-Nylon'];
 window.SS_MATERIALS = SS_MATERIALS;
 
+// Configured dropdown lists (Configure tab) with built-in fallbacks
+function cfgMaterials() {
+  return (window.__materials && window.__materials.length) ? window.__materials : SS_MATERIALS;
+}
+function cfgMachines() {
+  return (window.__machines && window.__machines.length) ? window.__machines : BOM_MACHINES;
+}
+
 // Two status ladders: bought parts move through purchasing; fabricated parts
 // move through the shop (Design → Released → Manufactured → Assembled).
 const BOM_LADDERS = {
@@ -436,7 +444,7 @@ const SpreadsheetModule = {
       const inStock = part ? (part.inStock || 0) : 0;
       const short = !isDone && !isNotUsed && inStock < b.qtyNeeded;
       const critical = short && inStock === 0;
-      const rowCls = (critical ? 'row-stock-low' : short ? 'row-stock-warn' : '') + (isNotUsed ? ' row-not-used' : '');
+      const rowCls = (critical ? 'row-stock-low' : short ? 'row-stock-warn' : '') + (isNotUsed ? ' row-not-used' : '') + (isMain ? '' : ' row-sub-' + subsystemColor(proj));
       const color = isMain ? 'gray' : subsystemColor(proj);
       const loc = part ? this.locations.find(l => l.id === part.locationId) : null;
       const eb = (f) => `SpreadsheetModule.editBomCell('${b.id}','${f}')`;
@@ -596,11 +604,11 @@ const SpreadsheetModule = {
         apply = () => { item.qtyNeeded = parseInt(document.getElementById('ssCellInput').value) || 1; };
         break;
       case 'material':
-        body = `<div class="form-group"><label class="form-label">Material</label><input type="text" class="form-input" id="ssCellInput" list="ssMaterialListModal" value="${escapeHTML(item.material || '')}" placeholder="e.g. 1/8&quot; Aluminum - Sheet"><datalist id="ssMaterialListModal">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist></div>`;
+        body = `<div class="form-group"><label class="form-label">Material</label><input type="text" class="form-input" id="ssCellInput" list="ssMaterialListModal" value="${escapeHTML(item.material || '')}" placeholder="e.g. 1/8&quot; Aluminum - Sheet"><datalist id="ssMaterialListModal">${cfgMaterials().map(m => `<option value="${m}"></option>`).join('')}</datalist></div>`;
         apply = () => { item.material = document.getElementById('ssCellInput').value.trim(); };
         break;
       case 'process':
-        body = `<div class="form-group"><label class="form-label">Machine / Process</label><input type="text" class="form-input" id="ssCellInput" list="ssMachineListModal" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC Router, Lathe, Purchase"><datalist id="ssMachineListModal">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist><div class="form-hint">Sets the type chip: CNC, 3D Printed, Manufacture, or COTS (Purchase).</div></div>`;
+        body = `<div class="form-group"><label class="form-label">Machine / Process</label><input type="text" class="form-input" id="ssCellInput" list="ssMachineListModal" value="${escapeHTML(item.process || '')}" placeholder="e.g. CNC Router, Lathe, Purchase"><datalist id="ssMachineListModal">${cfgMachines().map(m => `<option value="${m}"></option>`).join('')}</datalist><div class="form-hint">Sets the type chip: CNC, 3D Printed, Manufacture, or COTS (Purchase).</div></div>`;
         apply = () => {
           item.process = document.getElementById('ssCellInput').value.trim();
           item.type = bomFabType(item) === 'cots' ? 'cots' : 'inhouse';
@@ -681,13 +689,13 @@ const SpreadsheetModule = {
         <div class="form-group">
           <label class="form-label">Machine / Process</label>
           <input type="text" class="form-input" id="ssAddProcess" list="ssAddMachineList" placeholder="e.g. CNC Router, Purchase">
-          <datalist id="ssAddMachineList">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist>
+          <datalist id="ssAddMachineList">${cfgMachines().map(m => `<option value="${m}"></option>`).join('')}</datalist>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Material <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-input" id="ssAddMaterial" list="ssAddMaterialList" placeholder="e.g. 1/8&quot; Aluminum - Sheet">
-        <datalist id="ssAddMaterialList">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist>
+        <datalist id="ssAddMaterialList">${cfgMaterials().map(m => `<option value="${m}"></option>`).join('')}</datalist>
       </div>
     `;
     openModal('Add Item', body, `
@@ -793,12 +801,12 @@ const SpreadsheetModule = {
         <div class="form-group">
           <label class="form-label">Material</label>
           <input type="text" class="form-input" id="editBomMaterial" list="editBomMaterialList" value="${escapeHTML(item.material || '')}">
-          <datalist id="editBomMaterialList">${SS_MATERIALS.map(m => `<option value="${m}"></option>`).join('')}</datalist>
+          <datalist id="editBomMaterialList">${cfgMaterials().map(m => `<option value="${m}"></option>`).join('')}</datalist>
         </div>
         <div class="form-group">
           <label class="form-label">Machine / Process</label>
           <input type="text" class="form-input" id="editBomProcess" list="editBomMachineList" value="${escapeHTML(item.process || '')}">
-          <datalist id="editBomMachineList">${BOM_MACHINES.map(m => `<option value="${m}"></option>`).join('')}</datalist>
+          <datalist id="editBomMachineList">${cfgMachines().map(m => `<option value="${m}"></option>`).join('')}</datalist>
         </div>
       </div>
       <div class="form-group">
