@@ -1599,3 +1599,16 @@ body.sidebar-collapsed .main-content { margin-left: 0; width: 100%; }
 /* Tinted chips keep a crisp ring of their own color so they stay readable on
    subsystem-tinted spreadsheet rows */
 table .ss-chip[class*="tint-"] { box-shadow: inset 0 0 0 1px currentColor; }
+
+/* "In use but not listed" suggestion strip in Configure */
+.cfg-suggest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px dashed var(--border-hover);
+  border-radius: 8px;
+}
+.cfg-suggest-add i { color: var(--green); }

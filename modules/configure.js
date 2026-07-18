@@ -41,33 +41,86 @@ const ConfigureModule = {
   async render(container) {
     this.container = container;
 
-    // Categories: configured list (may be empty on purpose) merged with any
-    // categories already used on parts — fixes "category exists in Inventory
-    // but is missing in Configure".
-    this.cats = Array.isArray(window.__categories) ? [...window.__categories] : [];
-    this.catColors = { ...(window.__listColors?.categories || {}) };
+    // Values actually in use on parts / spreadsheet rows. On the FIRST visit
+    // (nothing configured yet) they seed the lists so nothing instantly flags
+    // as an error; afterwards they only appear as one-click suggestions —
+    // auto-re-adding them would silently undo deliberate deletions.
+    let usedCats = [], usedMats = [], usedMachines = [];
     try {
-      const parts = await DB.getAll('parts');
-      const used = [...new Set(parts.map(p => (p.category || '').trim()).filter(Boolean))];
-      const missing = used.filter(c => !this.cats.some(x => x.toLowerCase() === c.toLowerCase()));
-      if (missing.length || !Array.isArray(window.__categories)) {
-        this.cats.push(...missing);
-        await this.saveCategories(true);
-      }
-    } catch (e) { console.warn('Could not merge part categories:', e); }
-
-    // Materials / machines: use saved groups, or organize the flat list into
-    // families once (existing per-item colors promote to their group).
-    this.groups = {
-      materials: this.loadGroups('materials', cfgMaterials(), this.MATERIAL_FAMILIES),
-      machines: this.loadGroups('machines', cfgMachines(), this.MACHINE_FAMILIES),
+      const [parts, boms] = await Promise.all([DB.getAll('parts'), DB.getAll('bom_items')]);
+      usedCats = [...new Set(parts.map(p => (p.category || '').trim()).filter(Boolean))];
+      usedMats = [...new Set(boms.map(b => (b.material || '').trim()).filter(Boolean))];
+      usedMachines = [...new Set(boms.map(b => (b.process || '').trim()).filter(Boolean))];
+    } catch (e) { console.warn('Could not scan in-use values:', e); }
+    const unionCI = (base, extra) => {
+      const out = [...base];
+      extra.forEach(v => { if (!out.some(x => x.toLowerCase() === v.toLowerCase())) out.push(v); });
+      return out;
     };
-    // Persist a first-time migration so the structure sticks for everyone
+
+    // Categories: first visit imports what Inventory already uses ("category
+    // exists in Inventory but missing in Configure"); later visits suggest.
+    const firstCats = !Array.isArray(window.__categories);
+    this.cats = firstCats ? [] : [...window.__categories];
+    this.catColors = { ...(window.__listColors?.categories || {}) };
+    if (firstCats) {
+      this.cats = unionCI(this.cats, usedCats);
+      await this.saveCategories(true);
+    }
+    this.catSuggestions = usedCats.filter(c => !this.cats.some(x => x.toLowerCase() === c.toLowerCase()));
+
+    // Materials / machines: saved groups, or a one-time migration that
+    // organizes the flat list + everything in use into keyword families
+    // (existing per-item colors promote to their group).
+    this.groups = {
+      materials: this.loadGroups('materials', unionCI(cfgMaterials(), usedMats), this.MATERIAL_FAMILIES),
+      machines: this.loadGroups('machines', unionCI(cfgMachines(), usedMachines), this.MACHINE_FAMILIES),
+    };
     if (!window.__listGroups?.materials) await this.saveGrouped('materials', true);
     if (!window.__listGroups?.machines) await this.saveGrouped('machines', true);
+    this.suggestions = {
+      materials: usedMats.filter(v => !this.groups.materials.some(g => g.items.some(x => x.toLowerCase() === v.toLowerCase()))),
+      machines: usedMachines.filter(v => !this.groups.machines.some(g => g.items.some(x => x.toLowerCase() === v.toLowerCase()))),
+    };
 
     this.hiddenTabs = new Set(window.__hiddenTabs || []);
     this.renderView();
+  },
+
+  // Add a suggested in-use value back: categories directly, grouped kinds into
+  // their keyword family (created if needed) or "Other".
+  async addSuggestion(kind, value) {
+    if (kind === 'categories') {
+      this.cats.push(value);
+      this.catSuggestions = this.catSuggestions.filter(v => v !== value);
+      await this.saveCategories();
+    } else {
+      const families = kind === 'materials' ? this.MATERIAL_FAMILIES : this.MACHINE_FAMILIES;
+      const groups = this.groups[kind];
+      const fam = families.find(([, re]) => re.test(value));
+      const famName = fam ? fam[0] : 'Other';
+      let g = groups.find(x => x.name.toLowerCase() === famName.toLowerCase()) || groups.find(x => x.name === 'Other');
+      if (!g) { g = { name: famName, color: CFG_PALETTE[groups.length % CFG_PALETTE.length], items: [] }; groups.push(g); }
+      g.items.push(value);
+      this.suggestions[kind] = this.suggestions[kind].filter(v => v !== value);
+      await this.saveGrouped(kind);
+    }
+    this.renderView();
+  },
+
+  suggestionStrip(kind, list) {
+    if (!list || !list.length) return '';
+    return `
+      <div class="cfg-suggest">
+        <span class="text-xs text-muted"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> In use but not listed:</span>
+        ${list.map(v => `<button class="ss-chip cfg-suggest-add" data-kind="${kind}" data-v="${escapeAttr(v)}" title="Add to the list">${escapeHTML(v)} <i class="fa-solid fa-plus" aria-hidden="true"></i></button>`).join('')}
+      </div>`;
+  },
+
+  wireSuggestions(content) {
+    content.querySelectorAll('.cfg-suggest-add').forEach(b => {
+      b.addEventListener('click', () => this.addSuggestion(b.dataset.kind, b.dataset.v));
+    });
   },
 
   loadGroups(kind, flatList, families) {
@@ -158,7 +211,8 @@ const ConfigureModule = {
     content.innerHTML = `
       <div class="card">
         <div class="card-body">
-          <p class="text-sm text-muted mb-3">Part categories for the Parts Library. Categories already used on parts are pulled in automatically. Click a swatch to color a category — the color shows on its chips.</p>
+          <p class="text-sm text-muted mb-3">Part categories for the Parts Library. Click a swatch to color a category — the color shows on its chips.</p>
+          ${this.suggestionStrip('categories', this.catSuggestions)}
           <div class="cfg-cat-grid">
             ${this.cats.length === 0 ? '<div class="text-muted text-sm" style="padding:10px 0">Nothing yet — add categories below.</div>' : this.cats.map((name, i) => `
               <div class="cfg-row">
@@ -220,6 +274,7 @@ const ConfigureModule = {
       await this.saveCategories();
       this.renderView();
     });
+    this.wireSuggestions(content);
   },
 
   // ── materials / machines (grouped, color on the group) ─────────────────
@@ -232,6 +287,7 @@ const ConfigureModule = {
       <p class="text-sm text-muted mb-3">${kind === 'materials'
         ? 'Materials are organized by family — the family color shows on every material chip in the spreadsheet.'
         : 'Machines and processes by family. Names containing CNC, Print, or Purchase drive the type chip.'}</p>
+      ${this.suggestionStrip(kind, this.suggestions?.[kind])}
       <div class="cfg-groups">
         ${groups.map((g, gi) => `
           <div class="card cfg-group">
@@ -358,6 +414,7 @@ const ConfigureModule = {
       await this.saveGrouped(kind);
       this.renderView();
     });
+    this.wireSuggestions(content);
   },
 
   // ── visible tabs (instant save) ────────────────────────────────────────
