@@ -483,7 +483,7 @@ const VIEW_HELP = {
   spreadsheet: 'The master spreadsheet: every part your project needs, grouped by subsystem with color-coded part numbers. Every chip is clickable — status opens a picker, and material, machine, qty, stock, cost, location, and notes edit in place. The Data menu imports/exports CSV and JSON and auto-numbers parts missing an ID.',
   sketches: 'Every sketch and drawing attached to any part, gathered in one gallery.',
   search: 'Search across parts and projects. Tip: press Ctrl/Cmd+K from anywhere.',
-  configure: 'One place for shared dropdown data — categories, materials, and machines — plus which sidebar tabs your team actually sees. Changes apply for everyone.',
+  configure: 'One place for shared dropdown data — categories, materials, and machines — plus which sidebar tabs your team actually sees. Materials and machines are organized into groups (Aluminum, Steel, CNC, …); colors live on the group. Every change saves instantly for the whole team.',
   settings: 'Themes, stock thresholds, backup/restore, and sample data live here.',
 };
 
@@ -660,7 +660,7 @@ async function renderSettings(container) {
   const user = AuthModule.currentUser;
   
   container.innerHTML = `
-    <div style="max-width:640px;margin:0 auto">
+    <div class="settings-grid">
       <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Account</h3></div>
         <div class="card-body">
@@ -688,7 +688,7 @@ async function renderSettings(container) {
           </div>
         </div>
       </div>
-      <div class="card" style="margin-bottom:16px" id="teamAccessCard" hidden>
+      <div class="card settings-span" style="margin-bottom:16px" id="teamAccessCard" hidden>
         <div class="card-header"><h3>Team Access</h3></div>
         <div class="card-body" id="teamAccessBody"></div>
       </div>
@@ -1041,11 +1041,14 @@ window.App = {
     const savedTheme = localStorage.getItem('launchpad-theme');
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Load stock settings (baseline tolerance) + configurable dropdown lists
+    // Load stock settings (baseline tolerance) + configurable dropdown lists.
+    // null = "never configured" (built-in defaults apply); a saved list — even
+    // an emptied one — is respected, so deleted options stay deleted.
     window.__stockSettings = { tolerance: 10 };
-    window.__categories = [];
-    window.__materials = [];
-    window.__machines = [];
+    window.__categories = null;
+    window.__materials = null;
+    window.__machines = null;
+    window.__listGroups = { materials: null, machines: null };
     window.__hiddenTabs = [];
     try {
       const settingsList = await DB.getAll('settings');
@@ -1058,9 +1061,11 @@ window.App = {
       const mats = settingsList.find(s => s.id === 'materials');
       if (mats && Array.isArray(mats.list)) window.__materials = mats.list;
       if (mats && mats.colors) window.__listColors.materials = mats.colors;
+      if (mats && Array.isArray(mats.groups)) window.__listGroups.materials = mats.groups;
       const machines = settingsList.find(s => s.id === 'machines');
       if (machines && Array.isArray(machines.list)) window.__machines = machines.list;
       if (machines && machines.colors) window.__listColors.machines = machines.colors;
+      if (machines && Array.isArray(machines.groups)) window.__listGroups.machines = machines.groups;
       const ui = settingsList.find(s => s.id === 'ui');
       if (ui && Array.isArray(ui.hiddenTabs)) window.__hiddenTabs = ui.hiddenTabs;
       window.__defaultProject = ui?.defaultProject || null;

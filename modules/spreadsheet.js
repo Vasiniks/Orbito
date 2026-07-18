@@ -7,11 +7,14 @@ const SS_MATERIALS = ['1/16" Aluminum - Sheet', '1/8" Aluminum - Sheet', '3/16" 
 window.SS_MATERIALS = SS_MATERIALS;
 
 // Configured dropdown lists (Configure tab) with built-in fallbacks
+// Configured lists: a saved list — even an emptied one — wins over the built-in
+// defaults. Only a team that has never touched Configure sees the defaults
+// (otherwise deleted options would silently resurrect).
 function cfgMaterials() {
-  return (window.__materials && window.__materials.length) ? window.__materials : SS_MATERIALS;
+  return Array.isArray(window.__materials) ? window.__materials : SS_MATERIALS;
 }
 function cfgMachines() {
-  return (window.__machines && window.__machines.length) ? window.__machines : BOM_MACHINES;
+  return Array.isArray(window.__machines) ? window.__machines : BOM_MACHINES;
 }
 
 // Two status ladders: bought parts move through purchasing; fabricated parts
@@ -469,6 +472,10 @@ const SpreadsheetModule = {
       const loc = part ? this.locations.find(l => l.id === part.locationId) : null;
       const eb = (f) => `SpreadsheetModule.editBomCell('${b.id}','${f}')`;
       const ep = (f) => part ? `SpreadsheetModule.editPartCell('${part.id}','${f}')` : '';
+      // A value whose option was deleted in Configure shows as an error chip
+      // (the item keeps its value — the cell just flags it for a re-pick).
+      const matMiss = !!b.material && !cfgMaterials().includes(b.material);
+      const machMiss = !!b.process && !cfgMachines().includes(b.process);
 
       return divider + `
         <tr class="${rowCls}">
@@ -477,8 +484,8 @@ const SpreadsheetModule = {
           <td data-label="Part">${part ? `<button class="ss-name" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${part.id}'))" title="Open part details">${escapeHTML(part.name)}</button>` : '<span class="text-muted">Unknown Part</span>'}</td>
           ${v('sub') ? `<td data-label="Sub"><button class="chip-btn" onclick="event.stopPropagation();SpreadsheetModule.pickSub('${b.id}', this)" title="Move to another subsystem">${isMain ? getSubsystemChip(null, 'Main') : getSubsystemChip(proj)}</button></td>` : ''}
           ${v('type') ? `<td data-label="Type">${getFabChip(b)}</td>` : ''}
-          ${v('material') ? `<td data-label="Material">${this.chip(b.material, 'fa-layer-group', `SpreadsheetModule.pickList('${b.id}','material', this)`, 'Change material', tagTint('materials', b.material))}</td>` : ''}
-          ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, 'fa-gears', `SpreadsheetModule.pickList('${b.id}','machine', this)`, 'Change machine', tagTint('machines', b.process))}</td>` : ''}
+          ${v('material') ? `<td data-label="Material">${this.chip(b.material, matMiss ? 'fa-triangle-exclamation' : 'fa-layer-group', `SpreadsheetModule.pickList('${b.id}','material', this)`, matMiss ? 'This material was removed in Configure — click to pick a replacement' : 'Change material', matMiss ? ' chip-error' : tagTint('materials', b.material))}</td>` : ''}
+          ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, machMiss ? 'fa-triangle-exclamation' : 'fa-gears', `SpreadsheetModule.pickList('${b.id}','machine', this)`, machMiss ? 'This machine was removed in Configure — click to pick a replacement' : 'Change machine', machMiss ? ' chip-error' : tagTint('machines', b.process))}</td>` : ''}
           ${v('stock') ? `<td data-label="Stock">${part ? `<div class="qty-cell"><button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', -1)" title="Remove one" aria-label="Decrease stock">−</button>${getStockChip(inStock, part.needed || 0, part.id)}<button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', 1)" title="Add one" aria-label="Increase stock">+</button></div>` : '—'}</td>` : ''}
           ${v('cost') ? `<td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>` : ''}
           ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', `SpreadsheetModule.pickPartLocation('${part.id}', this)`, 'Change location') : '—'}</td>` : ''}

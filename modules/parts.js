@@ -420,7 +420,8 @@ const PartsModule = {
     wire();
 
     document.getElementById('saveCatsBtn').addEventListener('click', async () => {
-      await DB.put('settings', { id: 'categories', list: managed });
+      // Preserve the colors map Configure manages on the same doc
+      await DB.put('settings', { id: 'categories', list: managed, colors: window.__listColors?.categories || {} });
       window.__categories = managed;
       toast('Categories saved', 'success');
       closeModal();

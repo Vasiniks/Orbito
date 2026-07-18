@@ -171,6 +171,19 @@ const DB = {
     return data.id;
   },
 
+  // Full-document replace (no merge). setDoc merges never REMOVE map keys, so
+  // docs holding maps the user can delete from (Configure's colors) must be
+  // written whole — otherwise deleted entries resurrect on the next reload.
+  async putReplace(storeName, data) {
+    if (this.isOffline()) {
+      return LocalDB.put(storeName, data);
+    }
+    const { db, f } = this.getFs();
+    if (!data.id) throw new Error("ID required for put");
+    await f.setDoc(f.doc(db, storeName, data.id), data);
+    return data.id;
+  },
+
   async delete(storeName, id) {
     if (this.isOffline()) {
       return LocalDB.delete(storeName, id);
