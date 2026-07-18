@@ -1,6 +1,6 @@
 // auth.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 function parseEnvText(text) {
@@ -326,6 +326,13 @@ window.AuthModule = {
       return;
     }
 
+    // If we came back from a redirect sign-in, surface any error it produced.
+    // (Success needs nothing here — onAuthStateChanged fires with the user.)
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect sign in result error:", error);
+      alert("Sign in failed: " + (error.message || error));
+    });
+
     onAuthStateChanged(auth, async (user) => {
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('pendingOverlay').style.display = 'none';
@@ -472,7 +479,26 @@ window.AuthModule = {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Sign in error:", error);
-      alert("Sign in failed: " + error.message);
+      // User closed/cancelled the popup — not a failure, stay quiet.
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
+      // Popup path unavailable (blocked popup, strict browser storage, helper
+      // script failed) — retry as a full-page redirect instead.
+      const retryAsRedirect = [
+        'auth/internal-error',
+        'auth/popup-blocked',
+        'auth/operation-not-supported-in-this-environment',
+        'auth/web-storage-unsupported'
+      ].includes(error.code);
+      if (retryAsRedirect) {
+        try {
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectError) {
+          console.error("Redirect sign in error:", redirectError);
+          error = redirectError;
+        }
+      }
+      alert("Sign in failed: " + (error.message || error));
     }
   },
 

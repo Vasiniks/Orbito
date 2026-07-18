@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    // @1360.ca Google accounts are trusted automatically (mirrors AuthModule.isTeamEmail)
+    function isTeam() {
+      return signedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email.lower().matches('.*@1360[.]ca');
+    }
+    // Everyone else needs their users/{uid} doc approved by a Mentor first
+    function isApproved() {
+      return isTeam()
+        || (signedIn()
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved');
+    }
+
+    match /users/{uid} {
+      // You can always read your own profile (needed while still pending)
+      allow get: if signedIn() && request.auth.uid == uid;
+      // Anyone signed in may register themselves: team accounts arrive
+      // approved, everyone else must start as pending
+      allow create: if signedIn() && request.auth.uid == uid
+        && (isTeam() || request.resource.data.status == 'pending');
+      // You may edit your own profile, but never change your own approval status
+      allow update: if signedIn() && request.auth.uid == uid
+        && (isTeam() || request.resource.data.status == resource.data.status);
+    }
+
+    // Approved members have full access to team data. Roster management
+    // (approvals, roles, removals) is additionally Mentor-gated in the app UI.
+    match /{document=**} {
+      allow read, write: if isApproved();
+    }
+  }
+}
