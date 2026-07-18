@@ -114,12 +114,20 @@ const ConfigureModule = {
       <div class="cfg-suggest">
         <span class="text-xs text-muted"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> In use but not listed:</span>
         ${list.map(v => `<button class="ss-chip cfg-suggest-add" data-kind="${kind}" data-v="${escapeAttr(v)}" title="Add to the list">${escapeHTML(v)} <i class="fa-solid fa-plus" aria-hidden="true"></i></button>`).join('')}
+        ${list.length > 1 ? `<button class="btn btn-secondary btn-sm cfg-suggest-all" data-kind="${kind}" style="margin-left:auto"><i class="fa-solid fa-plus"></i> Add all</button>` : ''}
       </div>`;
   },
 
   wireSuggestions(content) {
     content.querySelectorAll('.cfg-suggest-add').forEach(b => {
       b.addEventListener('click', () => this.addSuggestion(b.dataset.kind, b.dataset.v));
+    });
+    content.querySelectorAll('.cfg-suggest-all').forEach(b => {
+      b.addEventListener('click', async () => {
+        const kind = b.dataset.kind;
+        const list = kind === 'categories' ? [...this.catSuggestions] : [...(this.suggestions[kind] || [])];
+        for (const v of list) await this.addSuggestion(kind, v);
+      });
     });
   },
 
