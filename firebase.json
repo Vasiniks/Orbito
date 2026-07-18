@@ -8,7 +8,13 @@
       "firebase.json",
       "firestore.rules",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.md",
+      "**/*.py",
+      "**/*.txt",
+      "**/*.pdf",
+      "**/*.log",
+      "firebase-tools"
     ],
     "headers": [
       {

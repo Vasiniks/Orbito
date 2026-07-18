@@ -1,38 +1,103 @@
 rules_version = '2';
+
+// Orbito — Firestore Security Rules
+// ---------------------------------------------------------------------------
+// The Firebase *web* config in auth.js is public (it ships in every browser).
+// These rules — NOT the API key — are what actually protect the database.
+//
+// Model (mirrors auth.js):
+//   • Users sign in with Google. A profile lives at /users/{uid} with
+//     { role: 'Student'|'Lead'|'Mentor', status: 'pending'|'approved', email }.
+//   • @1360.ca emails are trusted automatically (token email check — no doc
+//     read needed); everyone else starts 'pending' until a Mentor approves.
+//   • Nobody can escalate their own role or approve themselves.
+//   • Collections are matched explicitly; anything unknown is denied.
+//
+// Rules changes: test first via the Rules REST API (see session notes), then
+// deploy with `firebase deploy --only firestore`.
+// ---------------------------------------------------------------------------
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---- Helpers -----------------------------------------------------------
     function signedIn() {
       return request.auth != null;
     }
-    // @1360.ca Google accounts are trusted automatically (mirrors AuthModule.isTeamEmail)
+
+    // Team accounts are trusted from the verified Google token alone
+    // (mirrors AuthModule.isTeamEmail). No document read = no extra billed read.
     function isTeam() {
       return signedIn()
         && 'email' in request.auth.token
         && request.auth.token.email.lower().matches('.*@1360[.]ca');
     }
-    // Everyone else needs their users/{uid} doc approved by a Mentor first
+
+    // An approved member: team domain, or a profile a Mentor has approved.
     function isApproved() {
       return isTeam()
         || (signedIn()
             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved');
     }
 
-    match /users/{uid} {
-      // You can always read your own profile (needed while still pending)
-      allow get: if signedIn() && request.auth.uid == uid;
-      // Anyone signed in may register themselves: team accounts arrive
-      // approved, everyone else must start as pending
-      allow create: if signedIn() && request.auth.uid == uid
-        && (isTeam() || request.resource.data.status == 'pending');
-      // You may edit your own profile, but never change your own approval status
-      allow update: if signedIn() && request.auth.uid == uid
-        && (isTeam() || request.resource.data.status == resource.data.status);
+    function isMentor() {
+      return isApproved()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Mentor';
     }
 
-    // Approved members have full access to team data. Roster management
-    // (approvals, roles, removals) is additionally Mentor-gated in the app UI.
+    // ---- Users -------------------------------------------------------------
+    // Own profile is always readable (the pending screen needs it); the full
+    // roster only for approved members. Self-registration must arrive as a
+    // Student — pending for outside accounts, approved allowed on the team
+    // domain. Self-updates may never change role or status (no privilege
+    // escalation) except a team-domain account flipping its own pending
+    // profile to approved, which auth.js does on the next sign-in. Only
+    // Mentors manage other people's profiles.
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isApproved());
+      allow list: if isApproved();
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role == 'Student'
+        && (request.resource.data.status == 'pending'
+            || (request.resource.data.status == 'approved' && isTeam()));
+
+      allow update: if isMentor()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && (request.resource.data.status == resource.data.status
+                || (request.resource.data.status == 'approved' && isTeam())));
+
+      allow delete: if isMentor();
+    }
+
+    // ---- Team data ---------------------------------------------------------
+    // Any approved member can read and write build data — Students count stock,
+    // flip statuses, and run imports in the current app. (Finer role tiers are
+    // enforced in the UI via AuthModule.canPerform.)
+    match /parts/{id}      { allow read, write: if isApproved(); }
+    match /projects/{id}   { allow read, write: if isApproved(); }
+    match /bom_items/{id}  { allow read, write: if isApproved(); }
+    match /locations/{id}  { allow read, write: if isApproved(); }
+    match /vendors/{id}    { allow read, write: if isApproved(); }
+    match /tools/{id}      { allow read, write: if isApproved(); }
+    match /tasks/{id}      { allow read, write: if isApproved(); }
+    match /settings/{id}   { allow read, write: if isApproved(); }
+
+    // ---- Audit / telemetry -------------------------------------------------
+    // Append-heavy collections. Approved members read the feed and write their
+    // own records; deletes are Mentor-only so history can't be quietly
+    // rewritten. (Pending-action approve/reject is a Mentor-only screen.)
+    match /history/{id}         { allow read, create, update: if isApproved(); allow delete: if isMentor(); }
+    match /sessions/{id}        { allow read, create, update: if isApproved(); allow delete: if isMentor(); }
+    match /walk_logs/{id}       { allow read, create, update: if isApproved(); allow delete: if isMentor(); }
+    match /pending_actions/{id} { allow read, create, update: if isApproved(); allow delete: if isMentor(); }
+
+    // ---- Default deny ------------------------------------------------------
+    // Anything not matched above is denied. New collections must be added here
+    // explicitly rather than inheriting open access.
     match /{document=**} {
-      allow read, write: if isApproved();
+      allow read, write: if false;
     }
   }
 }

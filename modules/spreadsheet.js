@@ -282,13 +282,17 @@ const SpreadsheetModule = {
 
   // ── data selection ──
   allScopeItems() {
-    const fam = this.familyIds(this.scope);
+    const fam = new Set(this.familyIds(this.scope));
+    // Index parts/projects by id so each BOM row is an O(1) join instead of a
+    // linear scan (this runs twice per render — for stats and for the table).
+    const partById = new Map(this.parts.map(p => [p.id, p]));
+    const projById = new Map(this.projects.map(p => [p.id, p]));
     return this.boms
-      .filter(b => fam.includes(b.projectId))
+      .filter(b => fam.has(b.projectId))
       .map(b => ({
         b,
-        part: this.parts.find(p => p.id === b.partId),
-        proj: this.projects.find(p => p.id === b.projectId)
+        part: partById.get(b.partId),
+        proj: projById.get(b.projectId)
       }));
   },
 

@@ -218,15 +218,20 @@ const PartsModule = {
     if (locFilter !== 'all') filtered = filtered.filter(p => p.locationId === locFilter);
     if (contFilter !== 'all') filtered = filtered.filter(p => p.containerId === contFilter);
 
+    // Index locations/vendors by id once so sorting and row rendering are O(1)
+    // lookups instead of a linear .find() per part (was O(parts × vendors)).
+    const locById = new Map(this.locations.map(l => [l.id, l]));
+    const venById = new Map(this.vendors.map(v => [v.id, v]));
+
     filtered.sort((a, b) => {
       let va = a[this.sortField] || '';
       let vb = b[this.sortField] || '';
       if (this.sortField === 'location') {
-        va = this.locations.find(l => l.id === a.locationId)?.name || '';
-        vb = this.locations.find(l => l.id === b.locationId)?.name || '';
+        va = locById.get(a.locationId)?.name || '';
+        vb = locById.get(b.locationId)?.name || '';
       } else if (this.sortField === 'vendor') {
-        va = this.vendors.find(v => v.id === a.vendorId)?.name || '';
-        vb = this.vendors.find(v => v.id === b.vendorId)?.name || '';
+        va = venById.get(a.vendorId)?.name || '';
+        vb = venById.get(b.vendorId)?.name || '';
       }
       if (typeof va === 'string') va = va.toLowerCase();
       if (typeof vb === 'string') vb = vb.toLowerCase();
@@ -265,8 +270,8 @@ const PartsModule = {
         </thead>
         <tbody>
           ${filtered.map(p => {
-            const loc = this.locations.find(l => l.id === p.locationId);
-            const vendor = this.vendors.find(v => v.id === p.vendorId);
+            const loc = locById.get(p.locationId);
+            const vendor = venById.get(p.vendorId);
             const st = stockStatus(p.inStock || 0, p.needed || 0);
             const nameCls = st.status === 'below' ? 'part-name-low' : '';
             const rowCls = st.status === 'below' ? 'row-stock-low' : '';
@@ -275,7 +280,7 @@ const PartsModule = {
                 ${this.selectMode ? `<td><input type="checkbox" class="part-cb" value="${p.id}" ${this.selectedParts.has(p.id) ? 'checked' : ''} onchange="PartsModule.toggleSelect('${p.id}')" aria-label="Select ${escapeAttr(p.name)}"></td>` : ''}
                 ${this.col('photo') ? `<td data-label="Photo">
                   ${p.photo
-                    ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" title="Expand photo" aria-label="Expand photo of ${escapeAttr(p.name)}"><img src="${p.photo}" alt=""></button>`
+                    ? `<button class="part-thumb" onclick="showLightbox(this.querySelector('img').src)" title="Expand photo" aria-label="Expand photo of ${escapeAttr(p.name)}"><img src="${safeImageSrc(p.photo)}" alt=""></button>`
                     : `<button class="part-thumb part-thumb-empty" onclick="toast('No photo for this part yet — add one via Edit.', 'info')" title="Photo unavailable" aria-label="No photo for ${escapeAttr(p.name)}"><i class="fa-solid fa-image" aria-hidden="true"></i></button>`}
                 </td>` : ''}
                 <td data-label="Name" style="font-weight:500">
@@ -441,7 +446,7 @@ const PartsModule = {
     const refSlot = (key, label) => `
       <div style="flex:1;min-width:0">
         <label class="photo-upload ref-slot" id="refSlot_${key}" style="aspect-ratio:4/3">
-          ${refPhotos[key] ? `<img src="${refPhotos[key]}">` : `<i class="fa-solid fa-camera"></i><span style="font-size:11px">${label}</span>`}
+          ${refPhotos[key] ? `<img src="${safeImageSrc(refPhotos[key])}">` : `<i class="fa-solid fa-camera"></i><span style="font-size:11px">${label}</span>`}
           <input type="file" accept="image/*" data-ref="${key}" class="ref-input">
         </label>
         <div class="text-xs text-muted text-center mt-2" style="margin-top:4px">${label}</div>
@@ -454,7 +459,7 @@ const PartsModule = {
           <div style="width:140px">
             <label class="form-label">Photo</label>
             <label class="photo-upload" id="partPhotoUpload">
-              ${p.photo ? `<img src="${p.photo}">` : '<i class="fa-solid fa-camera"></i><span>Upload</span>'}
+              ${p.photo ? `<img src="${safeImageSrc(p.photo)}">` : '<i class="fa-solid fa-camera"></i><span>Upload</span>'}
               <input type="file" accept="image/*" id="partPhotoInput">
             </label>
           </div>
@@ -530,7 +535,7 @@ const PartsModule = {
           <div id="drawingsPreview" class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
             ${(p.drawings || []).map((d, i) => `
               <div style="position:relative;width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border)">
-                <img src="${d}" style="width:100%;height:100%;object-fit:cover">
+                <img src="${safeImageSrc(d)}" style="width:100%;height:100%;object-fit:cover">
                 <button type="button" class="btn-icon" style="position:absolute;top:1px;right:1px;width:18px;height:18px;font-size:10px;background:var(--red);color:#fff;border-radius:50%" onclick="PartsModule._removeDrawing(${i})" aria-label="Remove drawing"><i class="fa-solid fa-xmark"></i></button>
               </div>
             `).join('')}
@@ -570,7 +575,7 @@ const PartsModule = {
       const file = e.target.files[0];
       if (file) {
         currentPhoto = await readFileAsDataURL(file);
-        document.getElementById('partPhotoUpload').innerHTML = `<img src="${currentPhoto}"><input type="file" accept="image/*" id="partPhotoInput">`;
+        document.getElementById('partPhotoUpload').innerHTML = `<img src="${safeImageSrc(currentPhoto)}"><input type="file" accept="image/*" id="partPhotoInput">`;
       }
     });
 
@@ -583,7 +588,7 @@ const PartsModule = {
         const slot = document.getElementById(`refSlot_${key}`);
         const img = slot.querySelector('img');
         if (img) img.src = refPhotos[key];
-        else slot.insertAdjacentHTML('afterbegin', `<img src="${refPhotos[key]}">`);
+        else slot.insertAdjacentHTML('afterbegin', `<img src="${safeImageSrc(refPhotos[key])}">`);
       });
     });
 
@@ -675,7 +680,7 @@ const PartsModule = {
     if (!el) return;
     el.innerHTML = this._currentDrawings.map((d, i) => `
       <div style="position:relative;width:60px;height:60px;border-radius:4px;overflow:hidden;border:1px solid var(--border)">
-        <img src="${d}" style="width:100%;height:100%;object-fit:cover">
+        <img src="${safeImageSrc(d)}" style="width:100%;height:100%;object-fit:cover">
         <button type="button" class="btn-icon" style="position:absolute;top:1px;right:1px;width:18px;height:18px;font-size:10px;background:var(--red);color:#fff;border-radius:50%" onclick="PartsModule._removeDrawing(${i})" aria-label="Remove drawing"><i class="fa-solid fa-xmark"></i></button>
       </div>
     `).join('');
@@ -698,7 +703,7 @@ const PartsModule = {
       </div>
 
       <div id="partDetailInfo">
-        ${p.photo ? `<img src="${p.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:12px;cursor:zoom-in" onclick="showLightbox(this.src)" alt="Photo of ${escapeAttr(p.name)}">` : ''}
+        ${p.photo ? `<img src="${safeImageSrc(p.photo)}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:12px;cursor:zoom-in" onclick="showLightbox(this.src)" alt="Photo of ${escapeAttr(p.name)}">` : ''}
         <div class="grid-2" style="gap:12px">
           <div><span class="text-muted text-xs">Category</span><div>${escapeHTML(p.category || '—')}</div></div>
           <div><span class="text-muted text-xs">Vendor</span><div>${vendor ? escapeHTML(vendor.name) : '—'}${p.buyUrl ? ` <a href="${escapeAttr(p.buyUrl)}" target="_blank" rel="noopener" class="text-accent" style="margin-left:6px"><i class="fa-solid fa-cart-shopping"></i> Buy</a>` : ''}</div></div>
@@ -707,7 +712,7 @@ const PartsModule = {
           <div><span class="text-muted text-xs">Stock / Baseline</span><div>${getStockChip(p.inStock || 0, p.needed || 0, p.id)}</div></div>
           <div><span class="text-muted text-xs">Status</span><div class="text-sm">${escapeHTML(st.label)}</div></div>
         </div>
-        ${refPhoto ? `<div class="mt-3"><span class="text-muted text-xs">Reference — current status (${st.status} baseline)</span><img src="${refPhoto}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-top:4px;cursor:zoom-in;border:1px solid var(--border)" onclick="showLightbox(this.src)"></div>` : ''}
+        ${refPhoto ? `<div class="mt-3"><span class="text-muted text-xs">Reference — current status (${st.status} baseline)</span><img src="${safeImageSrc(refPhoto)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-top:4px;cursor:zoom-in;border:1px solid var(--border)" onclick="showLightbox(this.src)"></div>` : ''}
         ${p.description ? `<div class="mt-3"><span class="text-muted text-xs">Description</span><p class="text-sm">${escapeHTML(p.description)}</p></div>` : ''}
         ${p.onshapeUrl ? `<a href="${escapeAttr(p.onshapeUrl)}" target="_blank" class="btn btn-secondary btn-sm mt-3"><i class="fa-solid fa-cube"></i> Open in Onshape</a>` : ''}
       </div>
@@ -715,7 +720,7 @@ const PartsModule = {
       <div id="partDetailDrawings" style="display:none">
         ${drawings.length === 0 ? '<div class="empty-state" style="padding:30px"><p>No drawings attached.</p></div>' : `
           <div class="grid-2" style="gap:8px">
-            ${drawings.map(d => `<img src="${d}" style="width:100%;border-radius:6px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)" alt="Drawing">`).join('')}
+            ${drawings.map(d => `<img src="${safeImageSrc(d)}" style="width:100%;border-radius:6px;border:1px solid var(--border);cursor:zoom-in" onclick="showLightbox(this.src)" alt="Drawing">`).join('')}
           </div>
         `}
         ${p.onshapeUrl ? `<a href="${escapeAttr(p.onshapeUrl)}" target="_blank" class="btn btn-secondary btn-sm mt-3"><i class="fa-solid fa-cube"></i> Open in Onshape</a>` : ''}
@@ -757,9 +762,11 @@ const PartsModule = {
   exportCSV() {
     const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
     let csv = 'Name,Category,In Stock,Baseline,Unit Cost,Vendor,Buy Link,Location,Container,Description,Onshape URL\n';
+    const locById = new Map(this.locations.map(l => [l.id, l]));
+    const venById = new Map(this.vendors.map(v => [v.id, v]));
     this.parts.forEach(p => {
-      const loc = this.locations.find(l => l.id === p.locationId)?.name || '';
-      const vendor = this.vendors.find(v => v.id === p.vendorId)?.name || '';
+      const loc = locById.get(p.locationId)?.name || '';
+      const vendor = venById.get(p.vendorId)?.name || '';
       csv += [p.name, p.category || '', p.inStock || 0, p.needed || 0, p.unitCost || 0, vendor, p.buyUrl || '', loc, p.containerId || '', p.description || '', p.onshapeUrl || ''].map(esc).join(',') + '\n';
     });
     downloadFile('parts-library.csv', csv, 'text/csv');
@@ -767,12 +774,14 @@ const PartsModule = {
   },
 
   exportJSON() {
+    const locById = new Map(this.locations.map(l => [l.id, l]));
+    const venById = new Map(this.vendors.map(v => [v.id, v]));
     const out = this.parts.map(p => ({
       name: p.name, category: p.category || '', inStock: p.inStock || 0, baseline: p.needed || 0,
       unitCost: p.unitCost || 0,
-      vendor: this.vendors.find(v => v.id === p.vendorId)?.name || '',
+      vendor: venById.get(p.vendorId)?.name || '',
       buyUrl: p.buyUrl || '',
-      location: this.locations.find(l => l.id === p.locationId)?.name || '',
+      location: locById.get(p.locationId)?.name || '',
       container: p.containerId || '',
       description: p.description || '', onshapeUrl: p.onshapeUrl || ''
     }));
