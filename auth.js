@@ -477,6 +477,7 @@ window.AuthModule = {
   },
 
   async signOut() {
+    try { window.flushPendingPuts?.(); } catch (e) {}
     await this.recordSignOut('user');
     if (window.__launchpad_offline) {
       location.reload();

@@ -233,17 +233,39 @@ function showSelectMenu(anchor2, options, current, onPick, title) {
 }
 window.showSelectMenu = showSelectMenu;
 
-// ── Coalesced writes: rapid +/- clicks become one Firestore write ──
+// ── Coalesced writes: rapid edits batch into one Firestore write every ~10s ──
+// The UI updates instantly from the in-memory cache; the cloud write (and the
+// listener broadcast to every other open client) happens once per doc per
+// window instead of once per click.
 const _pendingPuts = {};
-function coalescedPut(store, obj, delay = 800) {
+function coalescedPut(store, obj, delay = 10_000) {
   const key = store + ':' + obj.id;
-  clearTimeout(_pendingPuts[key]);
-  _pendingPuts[key] = setTimeout(() => {
-    delete _pendingPuts[key];
-    DB.put(store, obj).catch(err => console.warn('Coalesced write failed:', err));
-  }, delay);
+  if (_pendingPuts[key]) clearTimeout(_pendingPuts[key].timer);
+  _pendingPuts[key] = {
+    store, obj,
+    timer: setTimeout(() => {
+      delete _pendingPuts[key];
+      DB.put(store, obj).catch(err => console.warn('Coalesced write failed:', err));
+    }, delay)
+  };
 }
 window.coalescedPut = coalescedPut;
+
+// Safety net: push everything pending immediately (tab hidden/closed, sign-out).
+// With Firestore persistence on, writes queued here survive even a killed tab.
+function flushPendingPuts() {
+  Object.keys(_pendingPuts).forEach(key => {
+    const p = _pendingPuts[key];
+    clearTimeout(p.timer);
+    delete _pendingPuts[key];
+    DB.put(p.store, p.obj).catch(err => console.warn('Flush write failed:', err));
+  });
+}
+window.flushPendingPuts = flushPendingPuts;
+window.addEventListener('pagehide', flushPendingPuts);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPendingPuts();
+});
 
 // Per-tag colors configured in the Configure tab (e.g. category → blue)
 function tagTint(kind, name) {

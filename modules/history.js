@@ -1,9 +1,11 @@
 // history.js — Activity Feed & Pending Approvals
 const HistoryModule = {
+  _recent: {}, // action|type|id → {docId, at} for merge-instead-of-append
+
   async log(action, entityType, entityId, entityName, details) {
     try {
       const user = window.AuthModule?.currentUser;
-      await DB.add('history', {
+      const entry = {
         action,
         entityType,
         entityId,
@@ -12,7 +14,19 @@ const HistoryModule = {
         userName: user?.name || 'System',
         timestamp: Date.now(),
         details: details || ''
-      });
+      };
+      // Same person hammering the same thing (e.g. editing one part repeatedly)
+      // updates the existing feed entry instead of growing the collection.
+      const key = `${action}|${entityType}|${entityId}|${entry.userId}`;
+      const recent = this._recent[key];
+      if (recent && Date.now() - recent.at < 600000) {
+        entry.id = recent.docId;
+        recent.at = Date.now();
+        await DB.put('history', entry);
+      } else {
+        const docId = await DB.add('history', entry);
+        this._recent[key] = { docId, at: Date.now() };
+      }
     } catch (e) {
       console.warn('History log failed:', e);
     }
