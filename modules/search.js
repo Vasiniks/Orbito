@@ -25,13 +25,15 @@ const SearchModule = {
     this.searchInput.addEventListener('input', debounce(() => this.performSearch(), 250));
 
     // Load all data async
-    this.data = { parts: [], projects: [] };
+    this.data = { parts: [], projects: [], locations: [] };
     Promise.all([
       DB.getAll('parts'),
-      DB.getAll('projects')
-    ]).then(([parts, projects]) => {
+      DB.getAll('projects'),
+      DB.getAll('locations')
+    ]).then(([parts, projects, locations]) => {
       this.data.parts = parts;
       this.data.projects = projects;
+      this.data.locations = locations;
       this.searchInput.focus();
     });
   },
@@ -46,12 +48,14 @@ const SearchModule = {
     const results = [];
 
     this.data.parts.filter(p => p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q))).forEach(p => {
+      const loc = this.data.locations.find(l => l.id === p.locationId);
       results.push({
         type: 'Part',
         icon: 'fa-screwdriver-wrench',
         color: 'var(--blue)',
         title: p.name,
-        subtitle: p.category || 'No Category',
+        subtitle: [p.category, loc ? loc.name + (p.containerId ? ' › ' + p.containerId : '') : null].filter(Boolean).join(' · ') || 'No details',
+        right: getStockChip(p.inStock || 0, p.needed || 0, p.id),
         action: () => { navigate('parts').then(() => PartsModule.showPartDetail(p.id)); }
       });
     });
@@ -83,10 +87,11 @@ const SearchModule = {
         <div class="search-result-icon" style="color:${r.color}" aria-hidden="true">
           <i class="fa-solid ${r.icon}"></i>
         </div>
-        <div>
-          <div class="search-result-title">${escapeHTML(r.title)}</div>
-          <div class="search-result-sub">${r.type} &bull; ${escapeHTML(r.subtitle)}</div>
+        <div style="min-width:0">
+          <div class="search-result-title truncate">${escapeHTML(r.title)}</div>
+          <div class="search-result-sub truncate">${r.type} &bull; ${escapeHTML(r.subtitle)}</div>
         </div>
+        <div style="margin-left:auto;flex-shrink:0">${r.right || ''}</div>
       </button>
     `).join('');
 

@@ -140,7 +140,6 @@ const SpreadsheetModule = {
     { key: 'type', label: 'Type' },
     { key: 'material', label: 'Material' },
     { key: 'machine', label: 'Machine' },
-    { key: 'qty', label: 'Qty' },
     { key: 'stock', label: 'Stock' },
     { key: 'cost', label: 'Cost' },
     { key: 'location', label: 'Location' },
@@ -164,7 +163,9 @@ const SpreadsheetModule = {
     const tops = this.projects.filter(p => !p.parentId);
     if (!this.scope || !tops.find(p => p.id === this.scope)) {
       const remembered = localStorage.getItem('launchpad-ss-scope');
-      this.scope = (remembered && tops.find(p => p.id === remembered)) ? remembered : (tops[0]?.id || null);
+      const preferred = window.__defaultProject && tops.find(p => p.id === window.__defaultProject) ? window.__defaultProject
+        : (remembered && tops.find(p => p.id === remembered)) ? remembered : null;
+      this.scope = preferred || tops[0]?.id || null;
       this.subFilter = 'all';
     }
     this.renderView();
@@ -220,6 +221,15 @@ const SpreadsheetModule = {
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
             <input type="text" id="ssSearch" placeholder="Search part name or number…">
           </div>
+          <div class="filter-wrap">
+            <button class="btn-icon" id="ssFilterBtn" title="Filters" aria-label="Filters" style="position:relative">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <span class="filter-badge" id="ssFilterBadge" style="display:none"></span>
+            </button>
+            <div class="filter-panel ${this._filterOpen ? 'open' : ''}" id="ssFilterPanel" style="min-width:320px">
+              <div id="ssFilters"></div>
+            </div>
+          </div>
         </div>
         <div class="toolbar-right">
           <button class="btn-icon" id="ssColsBtn" title="Show / hide columns" aria-label="Show or hide columns"><i class="fa-solid fa-table-columns" aria-hidden="true"></i></button>
@@ -231,7 +241,6 @@ const SpreadsheetModule = {
         </div>
       </div>
       <div id="ssStats"></div>
-      <div id="ssFilters"></div>
       <div class="table-wrap ${this.condensed ? 'ss-condensed' : ''}" id="ssTableWrap" style="max-height:calc(100vh - 320px); overflow-y:auto;"></div>
     `;
 
@@ -241,6 +250,11 @@ const SpreadsheetModule = {
       this.renderView();
     });
     document.getElementById('ssSearch').addEventListener('input', debounce(() => this.renderRows(), 150));
+    document.getElementById('ssFilterBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._filterOpen = !this._filterOpen;
+      document.getElementById('ssFilterPanel').classList.toggle('open', this._filterOpen);
+    });
     document.getElementById('ssCondensedBtn').addEventListener('click', () => {
       this.condensed = !this.condensed;
       localStorage.setItem('launchpad-ss-condensed', this.condensed ? '1' : '0');
@@ -292,7 +306,6 @@ const SpreadsheetModule = {
       case 'type': return bomFabType(b);
       case 'material': return (b.material || '￿').toLowerCase();
       case 'machine': return (b.process || '￿').toLowerCase();
-      case 'qty': return b.qtyNeeded || 0;
       case 'stock': return part?.inStock || 0;
       case 'cost': return part?.unitCost || 0;
       case 'location': return (this.locations.find(l => l.id === part?.locationId)?.name || '￿').toLowerCase();
@@ -390,6 +403,9 @@ const SpreadsheetModule = {
 
     // ── filter chips ──
     const mainCount = all.filter(r => r.b.projectId === this.scope).length;
+    const activeF = (this.subFilter !== 'all' ? 1 : 0) + (this.typeFilter !== 'all' ? 1 : 0);
+    const fBadge = document.getElementById('ssFilterBadge');
+    if (fBadge) { fBadge.style.display = activeF ? '' : 'none'; fBadge.textContent = activeF; }
     document.getElementById('ssFilters').innerHTML = all.length === 0 ? '' : `
       <div class="filter-chips mb-2">
         <button class="filter-chip ${this.subFilter === 'all' ? 'active' : ''}" onclick="SpreadsheetModule.setSubFilter('all')">All Systems (${all.length})</button>
@@ -442,7 +458,7 @@ const SpreadsheetModule = {
       const isDone = BOM_DONE_STATUSES.includes(b.status);
       const isNotUsed = b.status === 'not_used';
       const inStock = part ? (part.inStock || 0) : 0;
-      const short = !isDone && !isNotUsed && inStock < b.qtyNeeded;
+      const short = !isDone && !isNotUsed && part && stockStatus(inStock, part.needed || 0).status === 'below';
       const critical = short && inStock === 0;
       const rowCls = (critical ? 'row-stock-low' : short ? 'row-stock-warn' : '') + (isNotUsed ? ' row-not-used' : '') + (isMain ? '' : ' row-sub-' + subsystemColor(proj));
       const color = isMain ? 'gray' : subsystemColor(proj);
@@ -455,14 +471,13 @@ const SpreadsheetModule = {
           ${v('status') ? `<td data-label="Status"><button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();SpreadsheetModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button></td>` : ''}
           ${v('pn') ? `<td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>` : ''}
           <td data-label="Part">${part ? `<button class="ss-name" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${part.id}'))" title="Open part details">${escapeHTML(part.name)}</button>` : '<span class="text-muted">Unknown Part</span>'}</td>
-          ${v('sub') ? `<td data-label="Sub">${isMain ? getSubsystemChip(null, 'Main') : getSubsystemChip(proj)}</td>` : ''}
+          ${v('sub') ? `<td data-label="Sub"><button class="chip-btn" onclick="event.stopPropagation();SpreadsheetModule.pickSub('${b.id}', this)" title="Move to another subsystem">${isMain ? getSubsystemChip(null, 'Main') : getSubsystemChip(proj)}</button></td>` : ''}
           ${v('type') ? `<td data-label="Type">${getFabChip(b)}</td>` : ''}
-          ${v('material') ? `<td data-label="Material">${this.chip(b.material, 'fa-layer-group', eb('material'))}</td>` : ''}
-          ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, 'fa-gears', eb('process'))}</td>` : ''}
-          ${v('qty') ? `<td data-label="Qty">${this.chip(String(b.qtyNeeded), null, eb('qtyNeeded'))}</td>` : ''}
-          ${v('stock') ? `<td data-label="Stock">${part ? getStockChip(inStock, b.qtyNeeded, part.id) : '—'}</td>` : ''}
+          ${v('material') ? `<td data-label="Material">${this.chip(b.material, 'fa-layer-group', `SpreadsheetModule.pickList('${b.id}','material', this)`, 'Change material', tagTint('materials', b.material))}</td>` : ''}
+          ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, 'fa-gears', `SpreadsheetModule.pickList('${b.id}','machine', this)`, 'Change machine', tagTint('machines', b.process))}</td>` : ''}
+          ${v('stock') ? `<td data-label="Stock">${part ? `<div class="qty-cell"><button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', -1)" title="Remove one" aria-label="Decrease stock">−</button>${getStockChip(inStock, part.needed || 0, part.id)}<button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', 1)" title="Add one" aria-label="Increase stock">+</button></div>` : '—'}</td>` : ''}
           ${v('cost') ? `<td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>` : ''}
-          ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', ep('locationId')) : '—'}</td>` : ''}
+          ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', `SpreadsheetModule.pickPartLocation('${part.id}', this)`, 'Change location') : '—'}</td>` : ''}
           <td data-label="Notes" class="text-right">
             <div class="flex items-center justify-end gap-1">
               ${this.chip(b.comments ? (b.comments.length > 26 ? b.comments.slice(0, 24) + '…' : b.comments) : '', 'fa-comment', eb('comments'), b.comments || 'Add a note')}
@@ -485,7 +500,6 @@ const SpreadsheetModule = {
             ${v('type') ? th('type', 'Type') : ''}
             ${v('material') ? th('material', 'Material') : ''}
             ${v('machine') ? th('machine', 'Machine') : ''}
-            ${v('qty') ? th('qty', 'Qty') : ''}
             ${v('stock') ? th('stock', 'Stock') : ''}
             ${v('cost') ? th('cost', 'Cost') : ''}
             ${v('location') ? th('location', 'Location') : ''}
@@ -498,11 +512,66 @@ const SpreadsheetModule = {
   },
 
   // ── chips ──
-  chip(label, icon, onclick, title) {
+  chip(label, icon, onclick, title, extraCls = '') {
     const empty = !label;
-    return `<button class="ss-chip ${empty ? 'ss-chip-empty' : ''}" onclick="${onclick}" title="${escapeHTML(title || 'Click to edit')}">
+    return `<button class="ss-chip ${empty ? 'ss-chip-empty' : ''}${extraCls || ''}" onclick="event.stopPropagation();${onclick}" title="${escapeHTML(title || 'Click to edit')}">
       ${icon ? `<i class="fa-solid ${icon}" aria-hidden="true"></i>` : ''}${empty ? '+' : escapeHTML(label)}
     </button>`;
+  },
+
+  // ── dropdown pickers & stock stepper ──
+  stepStock(partId, delta) {
+    const p = this.parts.find(x => x.id === partId);
+    if (!p) return;
+    const next = Math.max(0, (p.inStock || 0) + delta);
+    if (next === p.inStock) return;
+    p.inStock = next;
+    coalescedPut('parts', p);
+    this.renderRows();
+  },
+
+  pickList(itemId, kind, anchor) {
+    const item = this.boms.find(b => b.id === itemId);
+    if (!item) return;
+    const field = kind === 'material' ? 'material' : 'process';
+    const list = kind === 'material' ? cfgMaterials() : cfgMachines();
+    const colorKind = kind === 'material' ? 'materials' : 'machines';
+    const opts = [
+      { value: '', label: 'None' },
+      ...list.map(x => ({ value: x, label: x, color: window.__listColors?.[colorKind]?.[x] })),
+      { value: '__custom', label: '✎ Custom…' }
+    ];
+    showSelectMenu(anchor, opts, item[field] || '', (v) => {
+      if (v === '__custom') return this.editBomCell(itemId, field);
+      item[field] = v;
+      if (field === 'process') item.type = bomFabType(item) === 'cots' ? 'cots' : 'inhouse';
+      DB.put('bom_items', item).then(() => this.renderRows()).catch(() => toast('Error saving', 'error'));
+    }, kind === 'material' ? 'Material' : 'Machine / Process');
+  },
+
+  pickPartLocation(partId, anchor) {
+    const p = this.parts.find(x => x.id === partId);
+    if (!p) return;
+    const opts = [{ value: '', label: 'None' }, ...this.locations.map(l => ({ value: l.id, label: l.name }))];
+    showSelectMenu(anchor, opts, p.locationId || '', (v) => {
+      if (v !== p.locationId) p.containerId = null;
+      p.locationId = v || null;
+      DB.put('parts', p).then(() => this.renderRows()).catch(() => toast('Error saving', 'error'));
+    }, 'Location');
+  },
+
+  pickSub(itemId, anchor) {
+    const item = this.boms.find(b => b.id === itemId);
+    if (!item) return;
+    const fam = this.familyIds(this.scope);
+    const opts = fam.map(id => {
+      const pr = this.projects.find(p => p.id === id);
+      return { value: id, label: (pr?.code && pr.parentId ? pr.code + ' · ' : '') + (pr?.name || '?') + (id === this.scope ? ' (main)' : ''), color: pr?.parentId ? subsystemColor(pr) : null };
+    });
+    showSelectMenu(anchor, opts, item.projectId, (v) => {
+      item.projectId = v;
+      DB.put('bom_items', item).then(() => this.renderRows()).catch(() => toast('Error saving', 'error'));
+    }, 'Subsystem');
   },
 
   // ── status picker ──
@@ -681,16 +750,10 @@ const SpreadsheetModule = {
           <input type="text" class="form-input mono" id="ssAddPartNumber" value="${this.nextPartNumber(defaultSub)}">
         </div>
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="form-label">Quantity</label>
-          <input type="number" class="form-input" id="ssAddQty" value="1" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Machine / Process</label>
-          <input type="text" class="form-input" id="ssAddProcess" list="ssAddMachineList" placeholder="e.g. CNC Router, Purchase">
-          <datalist id="ssAddMachineList">${cfgMachines().map(m => `<option value="${m}"></option>`).join('')}</datalist>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Machine / Process</label>
+        <input type="text" class="form-input" id="ssAddProcess" list="ssAddMachineList" placeholder="e.g. CNC Router, Purchase">
+        <datalist id="ssAddMachineList">${cfgMachines().map(m => `<option value="${m}"></option>`).join('')}</datalist>
       </div>
       <div class="form-group">
         <label class="form-label">Material <span class="text-muted">(optional)</span></label>
@@ -713,7 +776,7 @@ const SpreadsheetModule = {
       return toast('Part name is required', 'error');
     }
     const targetProjectId = document.getElementById('ssAddSubsystem').value;
-    const qtyNeeded = parseInt(document.getElementById('ssAddQty').value) || 1;
+    const qtyNeeded = 1;
     const process = document.getElementById('ssAddProcess').value.trim();
     const fab = bomFabType({ process, type: 'inhouse' });
 
@@ -787,15 +850,9 @@ const SpreadsheetModule = {
           <input type="text" class="form-input mono" id="editBomPartNumber" value="${escapeHTML(item.partNumber || '')}">
         </div>
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="form-label">Quantity Needed</label>
-          <input type="number" class="form-input" id="editBomQty" value="${item.qtyNeeded}" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Status</label>
-          <select class="form-select" id="editBomStatus">${this.statusOptions(item.status || 'design')}</select>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="editBomStatus">${this.statusOptions(item.status || 'design')}</select>
       </div>
       <div class="grid-2">
         <div class="form-group">
@@ -825,7 +882,6 @@ const SpreadsheetModule = {
     const item = this.boms.find(b => b.id === id);
     item.projectId = document.getElementById('editBomProject').value;
     item.partNumber = document.getElementById('editBomPartNumber').value.trim();
-    item.qtyNeeded = parseInt(document.getElementById('editBomQty').value) || 1;
     item.status = document.getElementById('editBomStatus').value;
     item.material = document.getElementById('editBomMaterial').value.trim();
     item.process = document.getElementById('editBomProcess').value.trim();

@@ -1,6 +1,6 @@
 // parts.js — Parts Library: stock tracking with baseline status, containers, vendors & import/export
 const PartsModule = {
-  sortField: 'name',
+  sortField: 'category',
   sortDir: 1,
   selectedParts: new Set(),
   selectMode: false,
@@ -55,32 +55,46 @@ const PartsModule = {
     this.container.innerHTML = `
       <div class="toolbar">
         <div class="toolbar-left">
-          <div class="search-box" style="max-width:220px">
+          <div class="search-box" style="max-width:260px">
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
             <input type="text" id="partsSearch" placeholder="Search parts...">
           </div>
-          <select class="form-select" style="width:130px" id="partsFilter" aria-label="Stock status filter">
-            <option value="all">All Stock</option>
-            <option value="below">Below Baseline</option>
-            <option value="at">At Baseline</option>
-            <option value="above">Above Baseline</option>
-          </select>
-          <select class="form-select" style="width:130px" id="catFilter" aria-label="Category filter">
-            <option value="all">All Categories</option>
-            ${cats.map(c => `<option value="${escapeAttr(c)}" ${this._catFilter === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
-          </select>
-          <select class="form-select" style="width:125px" id="vendorFilter" aria-label="Vendor filter">
-            <option value="all">All Vendors</option>
-            ${this.vendors.map(v => `<option value="${v.id}" ${this._vendorFilter === v.id ? 'selected' : ''}>${escapeHTML(v.name)}</option>`).join('')}
-          </select>
-          <select class="form-select" style="width:125px" id="locFilter" aria-label="Location filter">
-            <option value="all">All Locations</option>
-            ${this.locations.map(l => `<option value="${l.id}" ${locFilterVal === l.id ? 'selected' : ''}>${escapeHTML(l.name)}</option>`).join('')}
-          </select>
-          <select class="form-select" style="width:135px" id="containerFilter" aria-label="Container filter">
-            <option value="all">All Containers</option>
-            ${containers.map(c => `<option value="${escapeAttr(c.name)}" ${this.containerFilter === c.name ? 'selected' : ''}>${escapeHTML(c.name)}</option>`).join('')}
-          </select>
+          <div class="filter-wrap">
+            <button class="btn-icon" id="partsFilterBtn" title="Filters" aria-label="Filters" style="position:relative">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <span class="filter-badge" id="partsFilterBadge" style="display:none"></span>
+            </button>
+            <div class="filter-panel ${this._filterOpen ? 'open' : ''}" id="partsFilterPanel">
+              <div><label>Stock</label>
+              <select class="form-select" id="partsFilter" aria-label="Stock status filter">
+                <option value="all">All Stock</option>
+                <option value="below">Below Baseline</option>
+                <option value="at">At Baseline</option>
+                <option value="above">Above Baseline</option>
+              </select></div>
+              <div><label>Category</label>
+              <select class="form-select" id="catFilter" aria-label="Category filter">
+                <option value="all">All Categories</option>
+                ${cats.map(c => `<option value="${escapeAttr(c)}" ${this._catFilter === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
+              </select></div>
+              <div><label>Vendor</label>
+              <select class="form-select" id="vendorFilter" aria-label="Vendor filter">
+                <option value="all">All Vendors</option>
+                ${this.vendors.map(v => `<option value="${v.id}" ${this._vendorFilter === v.id ? 'selected' : ''}>${escapeHTML(v.name)}</option>`).join('')}
+              </select></div>
+              <div><label>Location</label>
+              <select class="form-select" id="locFilter" aria-label="Location filter">
+                <option value="all">All Locations</option>
+                ${this.locations.map(l => `<option value="${l.id}" ${locFilterVal === l.id ? 'selected' : ''}>${escapeHTML(l.name)}</option>`).join('')}
+              </select></div>
+              <div><label>Container</label>
+              <select class="form-select" id="containerFilter" aria-label="Container filter">
+                <option value="all">All Containers</option>
+                ${containers.map(c => `<option value="${escapeAttr(c.name)}" ${this.containerFilter === c.name ? 'selected' : ''}>${escapeHTML(c.name)}</option>`).join('')}
+              </select></div>
+              <button class="btn btn-ghost btn-sm" id="clearFiltersBtn"><i class="fa-solid fa-rotate-left"></i> Clear filters</button>
+            </div>
+          </div>
         </div>
         <div class="toolbar-right">
           <button class="btn btn-danger btn-sm" id="bulkDeleteBtn" style="display:none"><i class="fa-solid fa-trash"></i> Delete Selected</button>
@@ -97,7 +111,18 @@ const PartsModule = {
     document.getElementById('addPartBtn').addEventListener('click', () => this.showAddModal());
     document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
     document.getElementById('partsSearch').addEventListener('input', debounce(() => this.renderTable(), 250));
-    document.getElementById('partsFilter').addEventListener('change', () => this.renderTable());
+    if (this._stockFilter) document.getElementById('partsFilter').value = this._stockFilter;
+    document.getElementById('partsFilterBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._filterOpen = !this._filterOpen;
+      document.getElementById('partsFilterPanel').classList.toggle('open', this._filterOpen);
+    });
+    document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+      this._stockFilter = 'all'; this._catFilter = 'all'; this._vendorFilter = 'all';
+      this._locFilter = 'all'; this.containerFilter = 'all';
+      this.renderView();
+    });
+    document.getElementById('partsFilter').addEventListener('change', (e) => { this._stockFilter = e.target.value; this.renderTable(); });
     document.getElementById('catFilter').addEventListener('change', (e) => { this._catFilter = e.target.value; this.renderTable(); });
     document.getElementById('vendorFilter').addEventListener('change', (e) => { this._vendorFilter = e.target.value; this.renderTable(); });
     document.getElementById('locFilter').addEventListener('change', (e) => {
@@ -210,6 +235,14 @@ const PartsModule = {
       return 0;
     });
 
+    // Funnel badge shows how many filters are active
+    const activeFilters = [filter, catFilter, vendorFilter, locFilter, contFilter].filter(v => v !== 'all').length;
+    const badge = document.getElementById('partsFilterBadge');
+    if (badge) {
+      badge.style.display = activeFilters ? '' : 'none';
+      badge.textContent = activeFilters;
+    }
+
     const wrap = document.getElementById('partsTableWrap');
     if (filtered.length === 0) {
       wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-screwdriver-wrench"></i><h3>No parts found</h3><p>Adjust your filters or add some parts to your inventory.</p><button class="btn btn-primary" onclick="PartsModule.showAddModal()"><i class="fa-solid fa-plus"></i> Add Part</button></div>`;
@@ -225,8 +258,8 @@ const PartsModule = {
             <th style="cursor:pointer" onclick="PartsModule.toggleSort('name')">Name ${this.getSortIcon('name')}</th>
             ${this.col('category') ? `<th style="cursor:pointer" onclick="PartsModule.toggleSort('category')">Category ${this.getSortIcon('category')}</th>` : ''}
             ${this.col('vendor') ? `<th style="cursor:pointer" onclick="PartsModule.toggleSort('vendor')">Vendor ${this.getSortIcon('vendor')}</th>` : ''}
-            ${this.col('location') ? `<th style="cursor:pointer" onclick="PartsModule.toggleSort('location')">Location ${this.getSortIcon('location')}</th>` : ''}
             ${this.col('stock') ? `<th style="cursor:pointer" onclick="PartsModule.toggleSort('inStock')">Stock ${this.getSortIcon('inStock')}</th>` : ''}
+            ${this.col('location') ? `<th style="cursor:pointer" onclick="PartsModule.toggleSort('location')">Location ${this.getSortIcon('location')}</th>` : ''}
             <th class="text-right">Actions</th>
           </tr>
         </thead>
@@ -249,18 +282,21 @@ const PartsModule = {
                   <a href="#" class="${nameCls}" onclick="event.preventDefault();PartsModule.showPartDetail('${p.id}')" style="color:var(--text-0);text-decoration:none">${escapeHTML(p.name)}</a>
                   ${(p.drawings && p.drawings.length) || p.onshapeUrl ? '<i class="fa-solid fa-paperclip text-muted" style="margin-left:4px;font-size:10px" title="Has drawings"></i>' : ''}
                 </td>
-                ${this.col('category') ? `<td data-label="Category"><span class="badge badge-gray">${escapeHTML(p.category || '—')}</span></td>` : ''}
+                ${this.col('category') ? `<td data-label="Category"><button class="ss-chip ${p.category ? '' : 'ss-chip-empty'}${tagTint('categories', p.category)}" onclick="event.stopPropagation();PartsModule.pickCategory('${p.id}', this)" title="Change category">${p.category ? escapeHTML(p.category) : '+'}</button></td>` : ''}
                 ${this.col('vendor') ? `<td data-label="Vendor">
-                  ${vendor ? `<span class="chip chip-vendor"><i class="fa-solid fa-store" aria-hidden="true"></i>${escapeHTML(vendor.name)}</span>` : '<span class="text-muted">—</span>'}
+                  <button class="ss-chip ${vendor ? '' : 'ss-chip-empty'}" onclick="event.stopPropagation();PartsModule.pickVendor('${p.id}', this)" title="Change vendor"><i class="fa-solid fa-store" aria-hidden="true"></i>${vendor ? escapeHTML(vendor.name) : '+'}</button>
                   ${p.buyUrl ? `<a href="${escapeAttr(p.buyUrl)}" target="_blank" rel="noopener" class="btn-icon btn-sm" style="display:inline-grid;vertical-align:middle;margin-left:4px" title="Buy link" aria-label="Open buy link for ${escapeAttr(p.name)}"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="font-size:11px"></i></a>` : ''}
                 </td>` : ''}
-                ${this.col('location') ? `<td data-label="Location">${escapeHTML(loc ? loc.name : '—')}${p.containerId ? `<span class="text-muted text-xs"> › ${escapeHTML(p.containerId)}</span>` : ''}</td>` : ''}
                 ${this.col('stock') ? `<td data-label="Stock">
                   <div class="qty-cell">
                     <button class="qty-btn" onclick="PartsModule.step('${p.id}', -1)" title="Remove one" aria-label="Decrease stock of ${escapeAttr(p.name)}">−</button>
                     ${getStockChip(p.inStock || 0, p.needed || 0, p.id)}
                     <button class="qty-btn" onclick="PartsModule.step('${p.id}', 1)" title="Add one" aria-label="Increase stock of ${escapeAttr(p.name)}">+</button>
                   </div>
+                </td>` : ''}
+                ${this.col('location') ? `<td data-label="Location">
+                  <button class="ss-chip ${loc ? '' : 'ss-chip-empty'}" onclick="event.stopPropagation();PartsModule.pickLocation('${p.id}', this)" title="Change location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${loc ? escapeHTML(loc.name) : '+'}</button>
+                  ${loc ? `<button class="ss-chip ${p.containerId ? '' : 'ss-chip-empty'}" style="margin-left:3px" onclick="event.stopPropagation();PartsModule.pickContainer('${p.id}', this)" title="Change container"><i class="fa-solid fa-box" aria-hidden="true"></i>${p.containerId ? escapeHTML(p.containerId) : '+'}</button>` : ''}
                 </td>` : ''}
                 <td data-label="Actions" class="text-right">
                   <div class="flex items-center justify-end gap-1">
@@ -277,20 +313,57 @@ const PartsModule = {
     `;
   },
 
-  // Quick +/- stock stepper
-  async step(id, delta) {
+  // Quick +/- stock stepper (writes coalesce so 5 fast taps = 1 Firestore write)
+  step(id, delta) {
     const p = this.parts.find(x => x.id === id);
     if (!p) return;
     const next = Math.max(0, (p.inStock || 0) + delta);
     if (next === p.inStock) return;
     p.inStock = next;
-    try {
-      await DB.put('parts', p);
-      HistoryModule.log('update', 'part', id, p.name, `Stock ${delta > 0 ? '+1' : '-1'} → ${next}`);
+    coalescedPut('parts', p);
+    this.renderTable();
+  },
+
+  // Chip dropdowns: change category / vendor / location / container in place
+  _savePart(p, note) {
+    DB.put('parts', p).then(() => {
+      HistoryModule.log('update', 'part', p.id, p.name, note);
       this.renderTable();
-    } catch (err) {
-      toast('Error updating stock', 'error');
-    }
+    }).catch(() => toast('Error saving', 'error'));
+  },
+
+  pickCategory(id, anchor) {
+    const p = this.parts.find(x => x.id === id);
+    if (!p) return;
+    const opts = [{ value: '', label: 'None' }, ...this.allCategories().map(c => ({ value: c, label: c, color: window.__listColors?.categories?.[c] }))];
+    showSelectMenu(anchor, opts, p.category || '', (v) => { p.category = v; this._savePart(p, 'Category → ' + (v || 'none')); }, 'Category');
+  },
+
+  pickVendor(id, anchor) {
+    const p = this.parts.find(x => x.id === id);
+    if (!p) return;
+    const opts = [{ value: '', label: 'None' }, ...this.vendors.map(v => ({ value: v.id, label: v.name }))];
+    showSelectMenu(anchor, opts, p.vendorId || '', (v) => { p.vendorId = v || null; this._savePart(p, 'Vendor changed'); }, 'Vendor');
+  },
+
+  pickLocation(id, anchor) {
+    const p = this.parts.find(x => x.id === id);
+    if (!p) return;
+    const opts = [{ value: '', label: 'None' }, ...this.locations.map(l => ({ value: l.id, label: l.name }))];
+    showSelectMenu(anchor, opts, p.locationId || '', (v) => {
+      if (v !== p.locationId) p.containerId = null;
+      p.locationId = v || null;
+      this._savePart(p, 'Location changed');
+    }, 'Location');
+  },
+
+  pickContainer(id, anchor) {
+    const p = this.parts.find(x => x.id === id);
+    if (!p) return;
+    const loc = this.locations.find(l => l.id === p.locationId);
+    if (!loc) return;
+    const opts = [{ value: '', label: 'None' }, ...(loc.containers || []).map(c => ({ value: c.name, label: c.name }))];
+    showSelectMenu(anchor, opts, p.containerId || '', (v) => { p.containerId = v || null; this._savePart(p, 'Container changed'); }, 'Container in ' + loc.name);
   },
 
   // ── Categories ──

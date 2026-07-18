@@ -1193,7 +1193,7 @@ tr.ss-group:hover { background: transparent; }
 /* ══════════ Global search page ══════════ */
 .global-search-wrap {
   width: 100%;
-  max-width: 620px;
+  max-width: 900px;
   margin: 0 auto;
   padding-top: 36px;
   display: flex;
@@ -1249,6 +1249,46 @@ tr.ss-group:hover { background: transparent; }
 .history-body { display: flex; flex-direction: column; gap: 2px; }
 .history-text { font-size: 13.5px; color: var(--text-0); }
 .history-time { font-size: 12px; color: var(--text-3); }
+
+/* Bare button wrapper around a chip (dropdown triggers) */
+.chip-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
+.chip-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Desktop sidebar collapse (hamburger) */
+body.sidebar-collapsed .sidebar { transform: translateX(-100%); }
+body.sidebar-collapsed .main-content { margin-left: 0; width: 100%; }
+
+/* Scrollable select popovers */
+.popmenu-scroll { max-height: 320px; overflow-y: auto; }
+
+/* Compact filter panel (funnel button popover) */
+.filter-wrap { position: relative; }
+.filter-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  min-width: 250px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  display: none;
+  flex-direction: column; gap: 10px;
+}
+.filter-panel.open { display: flex; }
+.filter-panel .form-select { width: 100% !important; }
+.filter-panel label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.filter-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; border-radius: 100px;
+  background: var(--accent); color: var(--accent-contrast);
+  font-size: 10px; font-weight: 700;
+  display: grid; place-items: center; padding: 0 4px;
+}
+
+/* Configure tabs: tag rows */
+.cfg-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.cfg-row:last-child { border-bottom: none; }
+.cfg-swatch { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
 
 /* Sidebar Overlay (Mobile) */
 .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 25; opacity: 0; pointer-events: none; transition: opacity 0.3s; }

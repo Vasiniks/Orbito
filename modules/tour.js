@@ -9,7 +9,7 @@ const TourModule = {
     {
       target: '.sidebar-nav',
       title: 'Navigation',
-      body: 'Everything lives in the sidebar. On a phone, tap the ☰ button (or swipe right from the left edge) to open it.',
+      body: 'Everything lives in the sidebar. The ☰ button up top collapses or opens it — on a phone you can also swipe right from the left edge.',
       openSidebar: true,
     },
     {

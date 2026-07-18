@@ -206,6 +206,52 @@ function showColumnMenu(anchor, cols, hiddenSet, onChange) {
 }
 window.showColumnMenu = showColumnMenu;
 
+// ── Generic select dropdown (chip click → pick a value) ──
+function showSelectMenu(anchor2, options, current, onPick, title) {
+  document.getElementById('genericPopmenu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'popmenu popmenu-scroll';
+  menu.id = 'genericPopmenu';
+  menu.innerHTML = (title ? `<div class="popmenu-label">${escapeHTML(title)}</div>` : '') + options.map((o, i) => `
+    <button class="popmenu-item ${o.value === current ? 'active' : ''}" data-i="${i}">
+      <span>${o.color ? `<span class="priority-dot" style="background:var(--${o.color === 'amber' ? 'accent' : o.color});margin-right:7px"></span>` : ''}${escapeHTML(o.label)}</span>
+      ${o.value === current ? '<i class="fa-solid fa-check" aria-hidden="true"></i>' : ''}
+    </button>`).join('');
+  document.body.appendChild(menu);
+  const r = anchor2.getBoundingClientRect();
+  menu.style.top = Math.max(8, Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4)) + 'px';
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+  menu.querySelectorAll('.popmenu-item').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const opt = options[+b.dataset.i];
+      menu.remove();
+      onPick(opt.value, opt);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+}
+window.showSelectMenu = showSelectMenu;
+
+// ── Coalesced writes: rapid +/- clicks become one Firestore write ──
+const _pendingPuts = {};
+function coalescedPut(store, obj, delay = 800) {
+  const key = store + ':' + obj.id;
+  clearTimeout(_pendingPuts[key]);
+  _pendingPuts[key] = setTimeout(() => {
+    delete _pendingPuts[key];
+    DB.put(store, obj).catch(err => console.warn('Coalesced write failed:', err));
+  }, delay);
+}
+window.coalescedPut = coalescedPut;
+
+// Per-tag colors configured in the Configure tab (e.g. category → blue)
+function tagTint(kind, name) {
+  const c = window.__listColors?.[kind]?.[name];
+  return c ? ' tint-' + c : '';
+}
+window.tagTint = tagTint;
+
 // ── Detail chips (FRCBOM-style): machine/process, material, vendor ──
 function getProcessChip(process) {
   if (!process) return '<span class="text-muted">—</span>';
@@ -648,6 +694,18 @@ async function renderSettings(container) {
         </div>
       </div>
       <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><h3>Default Project</h3></div>
+        <div class="card-body">
+          <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-weight:500">Spreadsheet opens to</div>
+              <div class="text-sm text-muted">Most teams work one project at a time — pick which one loads by default.</div>
+            </div>
+            <select class="form-select" id="defaultProjectSelect" style="width:220px" aria-label="Default project"></select>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
         <div class="card-header"><h3>Performance</h3></div>
         <div class="card-body">
           <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
@@ -758,6 +816,19 @@ async function renderSettings(container) {
       console.error('Team access card failed:', e);
     }
   }
+
+  // Default project selector
+  try {
+    const projs = (await DB.getAll('projects')).filter(p => !p.parentId);
+    const sel = document.getElementById('defaultProjectSelect');
+    sel.innerHTML = '<option value="">Current (last used)</option>' + projs.map(p =>
+      `<option value="${escapeAttr(p.id)}" ${window.__defaultProject === p.id ? 'selected' : ''}>${escapeHTML(p.name)}</option>`).join('');
+    sel.addEventListener('change', async (e) => {
+      await DB.put('settings', { id: 'ui', defaultProject: e.target.value || null });
+      window.__defaultProject = e.target.value || null;
+      toast('Default project saved', 'success');
+    });
+  } catch (e) { console.warn('Default project selector failed:', e); }
 
   document.getElementById('themeSelect').value = document.documentElement.getAttribute('data-theme') || 'dark';
   document.getElementById('themeSelect').addEventListener('change', (e) => {
@@ -939,14 +1010,19 @@ window.App = {
       const settingsList = await DB.getAll('settings');
       const stock = settingsList.find(s => s.id === 'stockSettings');
       if (stock && stock.tolerance != null) window.__stockSettings = { tolerance: stock.tolerance };
+      window.__listColors = { categories: {}, materials: {}, machines: {} };
       const cats = settingsList.find(s => s.id === 'categories');
       if (cats && Array.isArray(cats.list)) window.__categories = cats.list;
+      if (cats && cats.colors) window.__listColors.categories = cats.colors;
       const mats = settingsList.find(s => s.id === 'materials');
       if (mats && Array.isArray(mats.list)) window.__materials = mats.list;
+      if (mats && mats.colors) window.__listColors.materials = mats.colors;
       const machines = settingsList.find(s => s.id === 'machines');
       if (machines && Array.isArray(machines.list)) window.__machines = machines.list;
+      if (machines && machines.colors) window.__listColors.machines = machines.colors;
       const ui = settingsList.find(s => s.id === 'ui');
       if (ui && Array.isArray(ui.hiddenTabs)) window.__hiddenTabs = ui.hiddenTabs;
+      window.__defaultProject = ui?.defaultProject || null;
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
@@ -1042,11 +1118,16 @@ window.App = {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     
     function toggleSidebar(force) {
+      if (window.innerWidth > 768) {
+        // Desktop: the hamburger collapses/expands the sidebar entirely.
+        // Calls with an explicit force are mobile close semantics — ignore.
+        if (force === undefined) document.body.classList.toggle('sidebar-collapsed');
+        return;
+      }
       const isOpen = sidebar.classList.toggle('open', force);
       if (sidebarOverlay) sidebarOverlay.classList.toggle('show', isOpen);
     }
     
-    if (window.innerWidth <= 768) toggle.style.display = '';
     toggle.addEventListener('click', () => toggleSidebar());
     
     if (sidebarOverlay) {
@@ -1080,8 +1161,12 @@ window.App = {
     }, {passive: true});
     
     window.addEventListener('resize', () => {
-      toggle.style.display = window.innerWidth <= 768 ? '' : 'none';
-      if (window.innerWidth > 768) toggleSidebar(false);
+      if (window.innerWidth > 768) {
+        sidebar.classList.remove('open');
+        if (sidebarOverlay) sidebarOverlay.classList.remove('show');
+      } else {
+        document.body.classList.remove('sidebar-collapsed');
+      }
     });
 
     // Auto close sidebar on nav for mobile
@@ -1090,6 +1175,9 @@ window.App = {
         if (window.innerWidth <= 768) toggleSidebar(false);
       });
     });
+
+    // Topbar search icon
+    document.getElementById('topbarSearchBtn').addEventListener('click', () => navigate('search'));
 
     // Help button
     document.getElementById('helpBtn').addEventListener('click', showHelpModal);
@@ -1114,11 +1202,11 @@ window.App = {
         <div class="qa-grid">
           <button class="qa-tile" onclick="closeModal();navigate('parts').then(()=>document.getElementById('addPartBtn').click())">
             <i class="fa-solid fa-screwdriver-wrench text-blue" aria-hidden="true"></i>
-            <span>Part</span>
+            <span>Inventory Part</span>
           </button>
-          <button class="qa-tile" onclick="closeModal();navigate('projects').then(()=>document.getElementById('addProjectBtn').click())">
-            <i class="fa-solid fa-folder-plus text-amber" aria-hidden="true"></i>
-            <span>Project</span>
+          <button class="qa-tile" onclick="closeModal();navigate('spreadsheet').then(()=>SpreadsheetModule.showAddModal())">
+            <i class="fa-solid fa-table-cells text-amber" aria-hidden="true"></i>
+            <span>Spreadsheet Item</span>
           </button>
         </div>
       `, '');
