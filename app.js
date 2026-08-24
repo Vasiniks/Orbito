@@ -11,6 +11,7 @@ const MODULES = {
   cnc:       { title: 'CNC List', render: (c) => CncModule.render(c) },
   tools:     { title: 'Tools',     render: (c) => ToolsModule.render(c) },
   accounts:  { title: 'Accounts',  render: (c) => AccountsModule.render(c) },
+  groups:    { title: 'Groups',    render: (c) => GroupsModule.render(c) },
   history:   { title: 'Activity',  render: (c) => HistoryModule.render(c) },
   workspace: { title: 'Workspace Map', render: (c) => WorkspaceModule.render(c) },
   spreadsheet: { title: 'Master Spreadsheet', render: (c) => SpreadsheetModule.render(c) },
@@ -346,6 +347,19 @@ function safeImageSrc(src) {
 }
 window.safeImageSrc = safeImageSrc;
 
+// safeUrl guards a user-supplied link before it lands in an href. Only http(s)
+// and mailto survive; javascript:/data: URLs render as a dead "#" so a pasted
+// payload can't execute when a teammate clicks the link.
+function safeUrl(url) {
+  if (typeof url !== 'string') return '#';
+  const s = url.trim();
+  if (/^(https?:|mailto:)/i.test(s)) return escapeAttr(s);
+  // Bare domains ("mcmaster.com/91290A115") are a normal thing to paste
+  if (/^[\w-]+(\.[\w-]+)+([/?#]|$)/.test(s)) return escapeAttr('https://' + s);
+  return '#';
+}
+window.safeUrl = safeUrl;
+
 // Centralized UUID helper. Falls back to Math.random when crypto.randomUUID
 // isn't available (older browsers or insecure contexts).
 function uid() {
@@ -477,6 +491,7 @@ const VIEW_HELP = {
   vendors: 'Vendor contact info and links. Click a vendor to see every part you buy from them.',
   cnc: 'The machine queue: every part waiting on the CNC (or Lathe, Manual Mill, 3D Printer) across all projects, sorted by part number. Click a status to update it as parts come off the machine.',
   tools: 'Tool catalog with health badges and checkout tracking, so you always know who has what.',
+  groups: 'Organize people into working groups — Build, Design, Programming and the boxes inside them. Drag a person onto a box, or use the chip menu on a phone. Separate from Accounts: nothing here changes anyone\'s login or access.',
   accounts: 'Team accounts. 1360.ca sign-ins are approved automatically; others need a Mentor. Click an account to see every spreadsheet line with their name on it.',
   history: 'A feed of every change: who did what, and when.',
   workspace: 'Upload a floorplan, draw zones on it, add photos and containers to each zone. The Find Part feature walks people to the exact container.',
@@ -539,7 +554,7 @@ async function renderDashboard(container) {
   const checkedOut = tools.filter(t => t.checkedOutBy).length;
   const cncQueue = boms.filter(b => {
     const proc = (b.process || '').toLowerCase();
-    return (proc.includes('cnc') || proc.includes('router')) && !BOM_DONE_STATUSES.includes(b.status) && b.status !== 'not_used';
+    return (proc.includes('cnc') || proc.includes('router')) && !BOM_FAB_DONE_STATUSES.includes(b.status) && b.status !== 'not_used';
   }).length;
   const containerCount = locations.reduce((s, l) => s + (l.containers || []).length, 0);
 

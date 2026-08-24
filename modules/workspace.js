@@ -330,10 +330,11 @@ const WorkspaceModule = {
       </div>
 
       <h4 class="text-sm font-semibold mb-2">Parts (${zParts.length})</h4>
+      ${zParts.length ? `<button class="btn btn-secondary btn-sm mb-2" style="width:100%;justify-content:center" onclick="WorkspaceModule.openZoneInInventory('${loc.id}')"><i class="fa-solid fa-screwdriver-wrench"></i> Open all in Inventory</button>` : ''}
       <div class="card">
         ${zParts.length === 0 ? '<div class="p-3 text-sm text-muted">No parts here</div>' : zParts.map(p => `
           <div class="p-2 border-b text-sm flex justify-between items-center" style="border-bottom:1px solid var(--border)">
-            <span class="truncate" style="max-width:140px">${escapeHTML(p.name)}</span>
+            <button class="ss-name truncate" style="max-width:140px;text-align:left" title="Find ${escapeAttr(p.name)} in the Parts Library" onclick="WorkspaceModule.openPartInInventory('${p.id}')">${escapeHTML(p.name)}</button>
             <div class="flex items-center gap-2">
               <span class="${(p.inStock||0)<(p.needed||0)?'text-red':''}">${p.inStock||0}</span>
               <button class="btn-icon btn-sm" title="Walk to this part" onclick="WorkspaceModule.showWalkToPartModal('${p.id}')"><i class="fa-solid fa-route" style="font-size:11px"></i></button>
@@ -342,6 +343,22 @@ const WorkspaceModule = {
         `).join('')}
       </div>
     `;
+  },
+
+  // Map → Inventory: jump to the Parts Library already filtered to what was
+  // tapped, so the map answers "what is this and how many do we have?".
+  openPartInInventory(partId) {
+    const p = this.parts.find(x => x.id === partId);
+    if (!p) return;
+    PartsModule.pendingSearch = p.name || '';
+    PartsModule.pendingLocation = 'all';
+    navigate('parts');
+  },
+
+  openZoneInInventory(locId) {
+    PartsModule.pendingSearch = '';
+    PartsModule.pendingLocation = locId;
+    navigate('parts');
   },
 
   async showWalkToPartModal(partId) {

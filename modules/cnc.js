@@ -75,7 +75,7 @@ const CncModule = {
     return this.boms
       .filter(b => this.machineMatch(this.machineFilter, b.process))
       .filter(b => b.status !== 'not_used')
-      .filter(b => this.showFinished || !BOM_DONE_STATUSES.includes(b.status))
+      .filter(b => this.showFinished || !BOM_FAB_DONE_STATUSES.includes(b.status))
       .map(b => ({ b, part: partById.get(b.partId), proj: projById.get(b.projectId) }))
       .sort((x, y) => (x.b.partNumber || '￿').localeCompare(y.b.partNumber || '￿', undefined, { numeric: true }));
   },
@@ -86,7 +86,7 @@ const CncModule = {
     const machineLabel = this.MACHINE_TABS.find(t => t.key === this.machineFilter)?.label || 'Machine';
 
     // Queue stats on the full (unfinished-only aware) list
-    const waiting = items.filter(({ b }) => !BOM_DONE_STATUSES.includes(b.status)).length;
+    const waiting = items.filter(({ b }) => !BOM_FAB_DONE_STATUSES.includes(b.status)).length;
 
     if (items.length === 0) {
       content.innerHTML = `
@@ -116,7 +116,7 @@ const CncModule = {
           <tbody>
             ${items.map(({ b, part, proj }) => {
               const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP[bomLadder(b)[0]];
-              const isDone = BOM_DONE_STATUSES.includes(b.status);
+              const isDone = BOM_FAB_DONE_STATUSES.includes(b.status);
               const color = proj?.parentId ? subsystemColor(proj) : 'gray';
               const rowCls = (isDone ? 'row-not-used' : '') + (color === 'gray' ? '' : ' row-sub-' + color);
               return `
@@ -154,7 +154,7 @@ const CncModule = {
       } catch (err) {
         toast('Error updating status', 'error');
       }
-    });
+    }, bomFabType(item));
   },
 
   exportCSV() {

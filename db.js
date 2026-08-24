@@ -9,10 +9,10 @@ const LocalDB = {
   init() {
     return new Promise((resolve, reject) => {
       if (this._db) return resolve(this._db);
-      const req = indexedDB.open('launchpad_local_db', 2);
+      const req = indexedDB.open('launchpad_local_db', 3);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'users', 'tasks', 'settings', 'bom_items', 'history', 'walk_logs', 'pending_actions', 'sessions'];
+        const stores = ['parts', 'projects', 'vendors', 'locations', 'tools', 'users', 'tasks', 'settings', 'bom_items', 'history', 'walk_logs', 'pending_actions', 'sessions', 'ss_sections', 'groups', 'group_people'];
         stores.forEach(s => {
           if (!db.objectStoreNames.contains(s)) {
             db.createObjectStore(s, { keyPath: 'id' });

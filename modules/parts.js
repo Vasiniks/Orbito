@@ -157,6 +157,21 @@ const PartsModule = {
       ]);
     });
 
+    // Deep link from another view (e.g. tapping a part on the Workspace Map):
+    // apply the requested search/location once, then forget it.
+    if (this.pendingSearch != null) {
+      document.getElementById('partsSearch').value = this.pendingSearch;
+      this.pendingSearch = null;
+    }
+    if (this.pendingLocation) {
+      const sel = document.getElementById('locFilter');
+      if (sel && [...sel.options].some(o => o.value === this.pendingLocation)) {
+        this._locFilter = this.pendingLocation;
+        sel.value = this.pendingLocation;
+      }
+      this.pendingLocation = null;
+    }
+
     this.renderTable();
   },
 

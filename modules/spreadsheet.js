@@ -17,25 +17,51 @@ function cfgMachines() {
   return Array.isArray(window.__machines) ? window.__machines : BOM_MACHINES;
 }
 
-// Two status ladders: bought parts move through purchasing; fabricated parts
-// move through the shop (Design → Released → Manufactured → Assembled).
+// Status ladders per fabrication route. Bought parts move through purchasing;
+// fabricated parts move through design → shop → assembly, with CNC and printing
+// carrying their own shop steps.
 const BOM_LADDERS = {
   cots:    ['not_started', 'ordered', 'in_stock', 'installed'],
-  inhouse: ['design', 'released', 'manufactured', 'assembled']
+  cnc:     ['design', 'design_complete', 'drawings_issued', 'released', 'ready_cnc', 'issued_cnc', 'in_progress', 'manufactured', 'assembled'],
+  print:   ['design', 'design_complete', 'released', 'printing', 'printed', 'assembled'],
+  inhouse: ['design', 'design_complete', 'drawings_issued', 'released', 'in_progress', 'manufactured', 'assembled']
 };
 const BOM_STATUS_ORDER = BOM_LADDERS.cots; // legacy alias
 const BOM_STATUS_MAP = {
-  'not_started':  { label: 'Not Started',  class: 'gray' },
-  'ordered':      { label: 'Ordered',      class: 'amber' },
-  'in_stock':     { label: 'In Stock',     class: 'blue' },
-  'installed':    { label: 'Installed',    class: 'green' },
-  'design':       { label: 'Design',       class: 'gray' },
-  'released':     { label: 'Released',     class: 'amber' },
-  'manufactured': { label: 'Manufactured', class: 'blue' },
-  'assembled':    { label: 'Assembled',    class: 'green' },
-  'not_used':     { label: 'Not Used',     class: 'rose' }
+  // purchasing
+  'not_started':     { label: 'Not Started',          class: 'gray' },
+  'ordered':         { label: 'Ordered',              class: 'amber' },
+  'in_stock':        { label: 'In Stock',             class: 'blue' },
+  'installed':       { label: 'Installed',            class: 'green' },
+  // design
+  'design':          { label: 'Design',               class: 'gray' },
+  'design_complete': { label: 'Design Complete',      class: 'cyan' },
+  'drawings_issued': { label: 'Part Drawings Issued', class: 'cyan' },
+  'released':        { label: 'Released',             class: 'amber' },
+  // shop
+  'ready_cnc':       { label: 'Ready to be CNCed',    class: 'amber' },
+  'issued_cnc':      { label: 'Issued to CNC',        class: 'purple' },
+  'in_progress':     { label: 'In Progress',          class: 'purple' },
+  'printing':        { label: 'Printing',             class: 'purple' },
+  'printed':         { label: 'Printed',              class: 'blue' },
+  'manufactured':    { label: 'Manufactured',         class: 'blue' },
+  // done / paused
+  'assembled':       { label: 'Assembled',            class: 'green' },
+  'on_hold':         { label: 'On Hold',              class: 'red' },
+  'not_used':        { label: 'Not Used',             class: 'rose' }
 };
+// Phase grouping drives the status picker menu.
+const BOM_STATUS_PHASES = [
+  { label: 'Design',      items: ['design', 'design_complete', 'drawings_issued', 'released'] },
+  { label: 'Fabrication', items: ['ready_cnc', 'issued_cnc', 'in_progress', 'printing', 'printed', 'manufactured'] },
+  { label: 'Assembly',    items: ['assembled'] },
+  { label: 'Purchased',   items: ['not_started', 'ordered', 'in_stock', 'installed'] },
+  { label: '',            items: ['on_hold', 'not_used'] }
+];
+// Fully finished — counts toward project progress.
 const BOM_DONE_STATUSES = ['installed', 'assembled'];
+// Off the shop floor — drops out of the CNC/print queue even if not yet assembled.
+const BOM_FAB_DONE_STATUSES = ['manufactured', 'printed', 'in_stock', 'installed', 'assembled'];
 
 // Fabrication type is derived from the machine/process (FRCBOM-style)
 const BOM_FAB_TYPES = {
@@ -60,7 +86,8 @@ function getFabChip(b) {
 }
 
 function bomLadder(b) {
-  return bomFabType(b) === 'cots' ? BOM_LADDERS.cots : BOM_LADDERS.inhouse;
+  const t = bomFabType(b);
+  return BOM_LADDERS[t] || BOM_LADDERS.inhouse;
 }
 
 // Subsystem colors: 100 → blue, 200 → green, 300 → amber, …
@@ -87,16 +114,17 @@ function getSubsystemChip(proj, fallbackLabel = 'Main') {
 function closeStatusMenu() {
   document.getElementById('statusPopmenu')?.remove();
 }
-function showStatusMenu(anchor, current, onPick) {
+function showStatusMenu(anchor, current, onPick, fabType) {
   closeStatusMenu();
   const menu = document.createElement('div');
-  menu.className = 'popmenu';
+  menu.className = 'popmenu popmenu-scroll';
   menu.id = 'statusPopmenu';
-  const groups = [
-    { label: 'Fabricated', items: BOM_LADDERS.inhouse },
-    { label: 'Purchased', items: BOM_LADDERS.cots },
-    { label: '', items: ['not_used'] }
-  ];
+  // Lead with the phase that matches how this part gets made, so the common
+  // next step is always near the top.
+  const lead = fabType === 'cots' ? 'Purchased' : fabType === 'print' || fabType === 'cnc' ? 'Fabrication' : null;
+  const groups = lead
+    ? [...BOM_STATUS_PHASES].sort((a, b) => (b.label === lead) - (a.label === lead))
+    : BOM_STATUS_PHASES;
   menu.innerHTML = groups.map(g => `
     ${g.label ? `<div class="popmenu-label">${g.label}</div>` : '<div class="popmenu-sep"></div>'}
     ${g.items.map(s => `
@@ -143,8 +171,9 @@ const SpreadsheetModule = {
     { key: 'type', label: 'Type' },
     { key: 'material', label: 'Material' },
     { key: 'machine', label: 'Machine' },
-    { key: 'stock', label: 'Stock' },
+    { key: 'stock', label: 'Quantity' },
     { key: 'cost', label: 'Cost' },
+    { key: 'buy', label: 'Buy Link' },
     { key: 'location', label: 'Location' },
   ],
 
@@ -175,12 +204,174 @@ const SpreadsheetModule = {
   },
 
   async loadData() {
-    [this.parts, this.locations, this.projects, this.boms] = await Promise.all([
+    [this.parts, this.locations, this.projects, this.boms, this.vendors, this.sections] = await Promise.all([
       DB.getAll('parts'),
       DB.getAll('locations'),
       DB.getAll('projects'),
-      DB.getAll('bom_items')
+      DB.getAll('bom_items'),
+      DB.getAll('vendors'),
+      DB.getAll('ss_sections')
     ]);
+  },
+
+  // ── Sections: draggable, renameable separators (Stage 0 / Stage 1 / …) ──
+  // Sections belong to the current top-level project; rows join one by being
+  // dragged onto it. Purely an organizing layer — no part data changes.
+  scopeSections() {
+    return (this.sections || [])
+      .filter(s => s.projectId === this.scope)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  },
+
+  sectionHeaderHTML(sec, count, COLS) {
+    const label = sec ? sec.name : 'Ungrouped';
+    const id = sec ? sec.id : '';
+    return `
+      <tr class="ss-group ss-section${sec ? '' : ' ss-section-none'}" data-section="${escapeAttr(id)}" ${sec ? 'draggable="true"' : ''}>
+        <td colspan="${COLS}">
+          <div class="ss-section-bar">
+            ${sec ? '<span class="ss-section-grip" title="Drag to reorder, or drop parts here" aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>' : '<span class="ss-section-grip" aria-hidden="true"></span>'}
+            <span class="ss-group-label${sec ? '' : ' text-muted'}">${escapeHTML(label)}</span>
+            <span class="ss-group-count">${count} part${count === 1 ? '' : 's'}</span>
+            ${sec ? `
+              <div class="ss-section-actions">
+                <button class="btn-icon btn-sm" onclick="event.stopPropagation();SpreadsheetModule.renameSection('${sec.id}')" title="Rename section" aria-label="Rename ${escapeAttr(sec.name)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                <button class="btn-icon btn-sm" style="color:var(--red)" onclick="event.stopPropagation();SpreadsheetModule.deleteSection('${sec.id}')" title="Delete section" aria-label="Delete ${escapeAttr(sec.name)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+              </div>` : '<div class="ss-section-actions"><span class="text-xs text-muted">drag parts onto a section</span></div>'}
+          </div>
+        </td>
+      </tr>`;
+  },
+
+  async addSection() {
+    if (!this.scope) return toast('Pick a project first', 'error');
+    const existing = this.scopeSections();
+    const body = `
+      <div class="form-group">
+        <label class="form-label">Section name</label>
+        <input type="text" class="form-input" id="ssSectionName" placeholder="e.g. Stage 1" value="Stage ${existing.length}">
+        <div class="form-hint">Sections split this project's parts into named blocks — drag rows onto one to file them.</div>
+      </div>`;
+    this._editor('New section', body, async () => {
+      const name = document.getElementById('ssSectionName').value.trim();
+      if (!name) throw new Error('Name required');
+      await DB.put('ss_sections', {
+        id: uid(),
+        projectId: this.scope,
+        name,
+        order: existing.length ? Math.max(...existing.map(s => s.order ?? 0)) + 1 : 0
+      });
+      toast(`Section "${name}" added`, 'success');
+    });
+    setTimeout(() => document.getElementById('ssSectionName')?.select(), 50);
+  },
+
+  async renameSection(id) {
+    const sec = (this.sections || []).find(s => s.id === id);
+    if (!sec) return;
+    const body = `
+      <div class="form-group">
+        <label class="form-label">Section name</label>
+        <input type="text" class="form-input" id="ssSectionName" value="${escapeAttr(sec.name)}">
+      </div>`;
+    this._editor('Rename section', body, async () => {
+      const name = document.getElementById('ssSectionName').value.trim();
+      if (!name) throw new Error('Name required');
+      sec.name = name;
+      await DB.put('ss_sections', sec);
+      toast('Section renamed', 'success');
+    });
+    setTimeout(() => document.getElementById('ssSectionName')?.select(), 50);
+  },
+
+  async deleteSection(id) {
+    const sec = (this.sections || []).find(s => s.id === id);
+    if (!sec) return;
+    const inside = this.boms.filter(b => b.sectionId === id);
+    if (!confirm(`Delete section "${sec.name}"?${inside.length ? ` Its ${inside.length} part${inside.length === 1 ? '' : 's'} move back to Ungrouped — no parts are deleted.` : ''}`)) return;
+    try {
+      await Promise.all(inside.map(b => { b.sectionId = null; return DB.put('bom_items', b); }));
+      await DB.delete('ss_sections', id);
+      toast('Section deleted', 'info');
+      await this.loadData();
+      this.renderRows();
+    } catch (e) {
+      toast('Could not delete section', 'error');
+    }
+  },
+
+  async assignSection(bomId, sectionId) {
+    const item = this.boms.find(b => b.id === bomId);
+    if (!item || item.sectionId === sectionId) return;
+    item.sectionId = sectionId || null;
+    try {
+      await DB.put('bom_items', item);
+      this.renderRows();
+    } catch (e) {
+      toast('Could not move part', 'error');
+    }
+  },
+
+  async reorderSection(dragId, targetId) {
+    const list = this.scopeSections();
+    const from = list.findIndex(s => s.id === dragId);
+    const to = list.findIndex(s => s.id === targetId);
+    if (from === -1 || to === -1 || from === to) return;
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    try {
+      await Promise.all(list.map((s, i) => { s.order = i; return DB.put('ss_sections', s); }));
+      this.renderRows();
+    } catch (e) {
+      toast('Could not reorder sections', 'error');
+    }
+  },
+
+  // Drag wiring is re-applied after every table render.
+  wireSectionDnD(wrap) {
+    if (!wrap) return;
+    const clear = () => wrap.querySelectorAll('.ss-drop-target').forEach(el => el.classList.remove('ss-drop-target'));
+
+    wrap.querySelectorAll('tr[data-bom]').forEach(tr => {
+      tr.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'row:' + tr.dataset.bom);
+        tr.classList.add('ss-dragging');
+      });
+      tr.addEventListener('dragend', () => { tr.classList.remove('ss-dragging'); clear(); });
+    });
+
+    wrap.querySelectorAll('tr.ss-section').forEach(tr => {
+      tr.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'section:' + tr.dataset.section);
+        tr.classList.add('ss-dragging');
+      });
+      tr.addEventListener('dragend', () => { tr.classList.remove('ss-dragging'); clear(); });
+      tr.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tr.classList.add('ss-drop-target');
+      });
+      tr.addEventListener('dragleave', () => tr.classList.remove('ss-drop-target'));
+      tr.addEventListener('drop', (e) => {
+        e.preventDefault();
+        clear();
+        const payload = e.dataTransfer.getData('text/plain') || '';
+        const [kind, id] = [payload.slice(0, payload.indexOf(':')), payload.slice(payload.indexOf(':') + 1)];
+        if (kind === 'row') this.assignSection(id, tr.dataset.section || null);
+        else if (kind === 'section' && tr.dataset.section && id !== tr.dataset.section) this.reorderSection(id, tr.dataset.section);
+      });
+    });
+  },
+
+  // Where a row's "buy" link points: the row's own link wins, then the part's,
+  // then the vendor's storefront.
+  buyLinkFor(b, part) {
+    const direct = (b.buyUrl || '').trim() || (part?.buyUrl || '').trim();
+    if (direct) return direct;
+    const vendor = part?.vendorId ? (this.vendors || []).find(v => v.id === part.vendorId) : null;
+    return (vendor?.website || '').trim();
   },
 
   familyIds(projectId) {
@@ -278,6 +469,7 @@ const SpreadsheetModule = {
         { label: 'Import JSON', icon: 'fa-file-import', onClick: () => this.importFile('json') },
         { sep: true },
         { label: 'Auto-number missing part #s', icon: 'fa-hashtag', onClick: () => this.autoNumberMissing() },
+        { label: 'Add section separator', icon: 'fa-grip-lines', onClick: () => this.addSection() },
       ]);
     });
     this.renderRows();
@@ -447,19 +639,12 @@ const SpreadsheetModule = {
     const v = (key) => this.colVisible(key);
     const COLS = 2 + this.HIDEABLE_COLS.filter(c => v(c.key)).length; // name + notes always shown
 
-    let lastGroup = null;
-    const bodyHTML = rows.map((row) => {
+    const sections = this.scopeSections();
+    const useSections = sections.length > 0;
+    const renderRow = (row) => {
       const { b, part, proj } = row;
       const isMain = b.projectId === this.scope;
       const groupId = isMain ? 'main' : b.projectId;
-      let divider = '';
-      if (groupDividers && groupId !== lastGroup) {
-        lastGroup = groupId;
-        const color = isMain ? 'gray' : subsystemColor(proj);
-        const label = isMain ? 'Main' : `${proj?.code ? proj.code + ' · ' : ''}${proj?.name || '?'}`;
-        const count = rows.filter(r => (r.b.projectId === this.scope ? 'main' : r.b.projectId) === groupId).length;
-        divider = `<tr class="ss-group ss-group-${color}"><td colspan="${COLS}"><span class="ss-group-label tint-${color}">${escapeHTML(label)}</span><span class="ss-group-count">${count} parts</span></td></tr>`;
-      }
 
       const st = BOM_STATUS_MAP[b.status] || BOM_STATUS_MAP[bomLadder(b)[0]];
       const isDone = BOM_DONE_STATUSES.includes(b.status);
@@ -477,8 +662,8 @@ const SpreadsheetModule = {
       const matMiss = !!b.material && !cfgMaterials().includes(b.material);
       const machMiss = !!b.process && !cfgMachines().includes(b.process);
 
-      return divider + `
-        <tr class="${rowCls}">
+      return `
+        <tr class="${rowCls}" data-bom="${b.id}"${useSections ? ' draggable="true"' : ''}>
           ${v('status') ? `<td data-label="Status"><button class="badge badge-${st.class} bom-status-btn" onclick="event.stopPropagation();SpreadsheetModule.pickStatus('${b.id}', this)" title="Change status" aria-haspopup="menu">${st.label} <i class="fa-solid fa-angle-down" style="font-size:9px;opacity:0.7" aria-hidden="true"></i></button></td>` : ''}
           ${v('pn') ? `<td data-label="Part #">${getPartNumberChip(b.partNumber, color)}</td>` : ''}
           <td data-label="Part">${part ? `<button class="ss-name" onclick="navigate('parts').then(()=>PartsModule.showPartDetail('${part.id}'))" title="Open part details">${escapeHTML(part.name)}</button>` : '<span class="text-muted">Unknown Part</span>'}</td>
@@ -486,8 +671,16 @@ const SpreadsheetModule = {
           ${v('type') ? `<td data-label="Type">${getFabChip(b)}</td>` : ''}
           ${v('material') ? `<td data-label="Material">${this.chip(b.material, matMiss ? 'fa-triangle-exclamation' : 'fa-layer-group', `SpreadsheetModule.pickList('${b.id}','material', this)`, matMiss ? 'This material was removed in Configure — click to pick a replacement' : 'Change material', matMiss ? ' chip-error' : tagTint('materials', b.material))}</td>` : ''}
           ${v('machine') ? `<td data-label="Machine">${this.chip(b.process, machMiss ? 'fa-triangle-exclamation' : 'fa-gears', `SpreadsheetModule.pickList('${b.id}','machine', this)`, machMiss ? 'This machine was removed in Configure — click to pick a replacement' : 'Change machine', machMiss ? ' chip-error' : tagTint('machines', b.process))}</td>` : ''}
-          ${v('stock') ? `<td data-label="Stock">${part ? `<div class="qty-cell"><button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', -1)" title="Remove one" aria-label="Decrease stock">−</button>${getStockChip(inStock, part.needed || 0, part.id)}<button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', 1)" title="Add one" aria-label="Increase stock">+</button></div>` : '—'}</td>` : ''}
+          ${v('stock') ? `<td data-label="Quantity">${part ? `<div class="qty-cell"><button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', -1)" title="Remove one" aria-label="Decrease stock">−</button>${getStockChip(inStock, part.needed || 0, part.id)}<button class="qty-btn" onclick="event.stopPropagation();SpreadsheetModule.stepStock('${part.id}', 1)" title="Add one" aria-label="Increase stock">+</button></div>` : '—'}</td>` : ''}
           ${v('cost') ? `<td data-label="Cost">${part ? this.chip(part.unitCost ? formatCurrency(part.unitCost) : '', null, ep('unitCost')) : '—'}</td>` : ''}
+          ${v('buy') ? `<td data-label="Buy Link">${(() => {
+            const url = this.buyLinkFor(b, part);
+            const edit = `SpreadsheetModule.editBuyLink('${b.id}')`;
+            if (!url) return `<button class="ss-chip ss-chip-empty" onclick="event.stopPropagation();${edit}" title="Add a purchase link">+</button>`;
+            let host = url;
+            try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+            return `<span class="buy-cell"><a class="ss-chip" href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escapeAttr(url)}"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>${escapeHTML(host)}</a><button class="qty-btn" onclick="event.stopPropagation();${edit}" title="Edit purchase link" aria-label="Edit purchase link"><i class="fa-solid fa-pen" style="font-size:9px"></i></button></span>`;
+          })()}</td>` : ''}
           ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', `SpreadsheetModule.pickPartLocation('${part.id}', this)`, 'Change location') : '—'}</td>` : ''}
           <td data-label="Notes" class="text-right">
             <div class="flex items-center justify-end gap-1">
@@ -498,7 +691,37 @@ const SpreadsheetModule = {
           </td>
         </tr>
       `;
-    }).join('');
+    };
+
+    // Rows are grouped either by named sections (draggable separators the team
+    // creates — Stage 0/1/2 …) or, when none exist, by subsystem.
+    let bodyHTML;
+    if (useSections) {
+      const known = new Set(sections.map(s => s.id));
+      const buckets = sections.map(sec => ({ sec, rs: rows.filter(r => r.b.sectionId === sec.id) }));
+      buckets.push({ sec: null, rs: rows.filter(r => !r.b.sectionId || !known.has(r.b.sectionId)) });
+      bodyHTML = buckets
+        .filter(({ sec, rs }) => sec || rs.length)
+        .map(({ sec, rs }) => this.sectionHeaderHTML(sec, rs.length, COLS) + rs.map(renderRow).join(''))
+        .join('');
+    } else {
+      let lastGroup = null;
+      bodyHTML = rows.map((row) => {
+        const { b, proj } = row;
+        const isMain = b.projectId === this.scope;
+        const groupId = isMain ? 'main' : b.projectId;
+        let divider = '';
+        if (groupDividers && groupId !== lastGroup) {
+          lastGroup = groupId;
+          const color = isMain ? 'gray' : subsystemColor(proj);
+          const label = isMain ? 'Main' : `${proj?.code ? proj.code + ' · ' : ''}${proj?.name || '?'}`;
+          const count = rows.filter(r => (r.b.projectId === this.scope ? 'main' : r.b.projectId) === groupId).length;
+          divider = `<tr class="ss-group ss-group-${color}"><td colspan="${COLS}"><span class="ss-group-label tint-${color}">${escapeHTML(label)}</span><span class="ss-group-count">${count} parts</span></td></tr>`;
+        }
+        return divider + renderRow(row);
+      }).join('');
+    }
+
 
     wrap.innerHTML = `
       <table class="spreadsheet-table" style="white-space:nowrap; width:max-content; min-width:100%;">
@@ -511,8 +734,9 @@ const SpreadsheetModule = {
             ${v('type') ? th('type', 'Type') : ''}
             ${v('material') ? th('material', 'Material') : ''}
             ${v('machine') ? th('machine', 'Machine') : ''}
-            ${v('stock') ? th('stock', 'Stock') : ''}
+            ${v('stock') ? th('stock', 'Quantity') : ''}
             ${v('cost') ? th('cost', 'Cost') : ''}
+            ${v('buy') ? `<th>Buy Link</th>` : ''}
             ${v('location') ? th('location', 'Location') : ''}
             <th class="text-right">Notes</th>
           </tr>
@@ -520,6 +744,7 @@ const SpreadsheetModule = {
         <tbody>${bodyHTML}</tbody>
       </table>
     `;
+    this.wireSectionDnD(wrap);
   },
 
   // ── chips ──
@@ -601,7 +826,7 @@ const SpreadsheetModule = {
       } catch (err) {
         toast('Error updating status', 'error');
       }
-    });
+    }, bomFabType(item));
   },
 
   // ── cell editors ──
@@ -666,6 +891,29 @@ const SpreadsheetModule = {
       await DB.put('parts', p);
       HistoryModule.log('update', 'part', p.id, p.name, `Edited ${field} via spreadsheet`);
       toast('Saved', 'success');
+    });
+  },
+
+  // Purchase link for one spreadsheet row. Saved on the row, so a specific
+  // listing can differ from the part's general buy link.
+  async editBuyLink(itemId) {
+    const item = this.boms.find(b => b.id === itemId);
+    if (!item) return;
+    const part = this.parts.find(p => p.id === item.partId);
+    const vendor = part?.vendorId ? (this.vendors || []).find(v => v.id === part.vendorId) : null;
+    const inherited = (part?.buyUrl || '').trim() || (vendor?.website || '').trim();
+    const body = `
+      <div class="form-group">
+        <label class="form-label">Purchase link</label>
+        <input type="url" class="form-input" id="ssCellInput" value="${escapeAttr(item.buyUrl || '')}" placeholder="https://www.mcmaster.com/91290A115/">
+        <div class="form-hint">Where to buy this exact part. Opens in a new tab from the Buy Link column.</div>
+      </div>
+      ${inherited ? `<p class="text-sm text-muted">Leave empty to fall back to ${vendor && !part?.buyUrl ? escapeHTML(vendor.name) + "'s site" : "the part's buy link"}: <span class="mono" style="font-size:11px">${escapeHTML(inherited)}</span></p>` : ''}
+    `;
+    this._editor(`Buy link: ${part?.name || item.partNumber || 'Item'}`, body, async () => {
+      item.buyUrl = document.getElementById('ssCellInput').value.trim();
+      await DB.put('bom_items', item);
+      toast('Buy link saved', 'success');
     });
   },
 

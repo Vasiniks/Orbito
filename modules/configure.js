@@ -34,6 +34,7 @@ const ConfigureModule = {
     { key: 'tools', label: 'Tools' },
     { key: 'sketches', label: 'Global Sketches' },
     { key: 'accounts', label: 'Accounts' },
+    { key: 'groups', label: 'Groups' },
     { key: 'history', label: 'Activity' },
     { key: 'workspace', label: 'Workspace Map' },
   ],

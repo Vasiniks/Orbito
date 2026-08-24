@@ -1612,3 +1612,76 @@ table .ss-chip[class*="tint-"] { box-shadow: inset 0 0 0 1px currentColor; }
   border-radius: 8px;
 }
 .cfg-suggest-add i { color: var(--green); }
+
+/* ── V5: spreadsheet section separators ─────────────────────────────────── */
+.ss-section-bar { display: flex; align-items: center; gap: 10px; }
+.ss-section-grip { width: 14px; color: var(--text-3); cursor: grab; flex-shrink: 0; }
+.ss-section[draggable="true"] { cursor: grab; }
+.ss-section .ss-group-label { font-weight: 650; }
+.ss-section-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.ss-section-none .ss-group-label { font-weight: 500; }
+.ss-drop-target > td { box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent); }
+tr.ss-dragging { opacity: 0.4; }
+
+/* Buy Link column */
+.buy-cell { display: inline-flex; align-items: center; gap: 4px; }
+.buy-cell a.ss-chip { text-decoration: none; }
+
+/* ── V5: Groups ─────────────────────────────────────────────────────────── */
+.grp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.grp-pool { margin-bottom: 16px; }
+.grp-card { padding: 0; }
+.grp-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.grp-head h3 { margin: 0; font-size: 15px; }
+.grp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px 14px;
+  min-height: 46px;
+  align-content: flex-start;
+}
+.grp-direct { border-bottom: 1px solid var(--border); }
+.grp-sub { border-bottom: 1px solid var(--border); }
+.grp-sub:last-child { border-bottom: none; }
+.grp-sub-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0;
+}
+.grp-sub-name { font-size: 12.5px; font-weight: 600; color: var(--text-1); }
+.grp-drop-active { background: var(--accent-dim); outline: 2px dashed var(--accent); outline-offset: -3px; border-radius: 8px; }
+
+.grp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: grab;
+  max-width: 100%;
+}
+.grp-chip:hover { border-color: var(--border-hover); }
+.grp-chip-grip { color: var(--text-3); font-size: 10px; }
+.grp-chip-name { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grp-chip-meta { font-size: 10.5px; opacity: 0.75; white-space: nowrap; }
+.grp-chip.grp-dragging { opacity: 0.4; }
+.grp-chip[class*="tint-"] { box-shadow: inset 0 0 0 1px currentColor; }
+@media (max-width: 640px) { .grp-grid { grid-template-columns: 1fr; } }

@@ -83,6 +83,12 @@ service cloud.firestore {
     match /tools/{id}      { allow read, write: if isApproved(); }
     match /tasks/{id}      { allow read, write: if isApproved(); }
     match /settings/{id}   { allow read, write: if isApproved(); }
+    // Spreadsheet section separators (Stage 0/1/2 …)
+    match /ss_sections/{id} { allow read, write: if isApproved(); }
+    // Groups: shop organization only. group_people is deliberately separate
+    // from /users — editing a chip never grants or changes account access.
+    match /groups/{id}       { allow read, write: if isApproved(); }
+    match /group_people/{id} { allow read, write: if isApproved(); }
 
     // ---- Audit / telemetry -------------------------------------------------
     // Append-heavy collections. Approved members read the feed and write their
