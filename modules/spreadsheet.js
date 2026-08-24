@@ -677,8 +677,10 @@ const SpreadsheetModule = {
             const url = this.buyLinkFor(b, part);
             const edit = `SpreadsheetModule.editBuyLink('${b.id}')`;
             if (!url) return `<button class="ss-chip ss-chip-empty" onclick="event.stopPropagation();${edit}" title="Add a purchase link">+</button>`;
+            if (safeUrl(url) === '#') return `<button class="ss-chip chip-error" onclick="event.stopPropagation();${edit}" title="Not a usable web address — click to fix"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Bad link</button>`;
             let host = url;
-            try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+            try { host = new URL(/^https?:/i.test(url) ? url : 'https://' + url).hostname.replace(/^www\./, ''); } catch (e) {}
+            if (!host) host = url.slice(0, 24);
             return `<span class="buy-cell"><a class="ss-chip" href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="${escapeAttr(url)}"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>${escapeHTML(host)}</a><button class="qty-btn" onclick="event.stopPropagation();${edit}" title="Edit purchase link" aria-label="Edit purchase link"><i class="fa-solid fa-pen" style="font-size:9px"></i></button></span>`;
           })()}</td>` : ''}
           ${v('location') ? `<td data-label="Location">${part ? this.chip(loc?.name, 'fa-location-dot', `SpreadsheetModule.pickPartLocation('${part.id}', this)`, 'Change location') : '—'}</td>` : ''}
