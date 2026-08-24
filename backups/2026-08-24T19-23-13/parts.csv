@@ -1,0 +1,91 @@
+id,name,category,inStock,baseline,unitCost,vendor,location,container,buyUrl,onshapeUrl,description,hasPhoto,drawingCount
+bfec0779-7fa2-4d57-9643-8a94d2f79c7a,1/2in Hex Flap Wheel,,8,8,0,REV Robotics,Main Storage Room,STARS,,,,,0
+3df93b4b-9269-430f-9131-12af6583d05b,104T HTD 5 Belt,,4,4,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+19ba650b-cd27-4067-ac88-640297f80e85,105T HTD 5 Belt,,2,2,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+3263ffcb-211d-478b-bccf-4bab5938f22f,110T GT2-3MM Belt,,2,2,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+2e213c08-6013-40b3-a2b7-07d0bff2fe1f,110T HTD5 Belt,,11,12,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+3f0fa0ea-544c-4d0a-aff7-f43aa3504ded,115T HTD5 Belt,,3,3,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+a9151a3d-f97d-41c3-b423-6f1a7ef21862,120T HTD 5 Belt,,5,5,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+ab5304ab-d659-40cf-bf8c-fec336280e02,125T GT2-3MM Belt,,1,1,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+27474c51-d252-4b4a-9ed6-c96fef68e42a,125T HTD5 Belt,,5,5,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+077ce1d9-4f7e-4bb5-aa3e-56960d45b82c,125T x 9MM GT2 3MM Belt,,1,0,0,West Coast Products,Main Storage Room,Belts more than 100T,,,,,0
+10d1acc7-3c9b-480b-a571-fbb558113952,12T 20DP Neo Motor Pinion Gear,,13,13,0,,Main Storage Room,Gears,,,,,0
+4d9984fc-4c61-4153-ad3f-dceb926bea5e,131T HTD 5 15mm Belt,,3,3,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+a710a6d6-b05b-4ee6-b2e0-79c44f11d2ed,131T HTD 5 Belt,,1,1,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+29967549-6e43-4cb4-b1c6-6cb3b53e12a8,14T 20DP Neo Pinion Gear,,5,5,0,,Main Storage Room,Gears,,,,,0
+3790c004-3ccc-4cc4-a753-c3aa267b29e1,150T HTD5 Belt,,6,6,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+62bd7bae-66e5-4a84-9d44-982930356500,"15T 20DP x 3/4"" Gear",,3,3,0,,Main Storage Room,Gears,,,,,0
+ea50a4aa-ea61-4fd5-9612-bb1d809be6cb,165T HTD5 Belt,,5,5,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+4a2b5f5d-d5bc-4a97-954e-e69253585717,170T HTD5 Belt,,3,3,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+05737efc-5afd-4d43-9e77-93253f968184,180T HTD5 Belt,,1,1,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+0d85c330-2419-4cfb-b0e7-8685981a6122,180T x 9MM GT2 3MM Belt,,6,6,0,West Coast Products,Main Storage Room,Belts more than 100T,,,,,0
+6b80ace4-cc20-4bec-ae20-64c2bd43111e,19T 20DP Gear,,5,5,0,,Main Storage Room,Gears,,,,,0
+a5146cbf-6a77-4413-b675-c0f757672ecf,"2""x0.5"" 60A Compliant Wheel Hex Insert",,11,11,0,,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+3bdc8a3f-ed37-4b99-810c-22f0fee0e82f,"2""x1"" 40A Stealth Wheel",,8,8,0,Studica,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+7fb1af95-a9a6-4b09-9e29-fcea19a74f0b,"2""x1"" 50A Stealth Wheel Hex Insert",,5,5,0,,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+6527ebd2-fd38-44f0-b42c-4d8ef185c704,"2""x7/8"" 30A Stealth Wheel Hex Insert",,2,2,0,Banebots,,,,,,yes,0
+77ede2a9-460c-458c-a5e3-bb9e78f5765a,"2""x7/8"" 40A Stealth Wheel Hex Insert",,2,2,0,Banebots,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+afbba34b-2de3-4f04-9543-7c1894249ff5,"2""x7/8"" 60A Stealth Wheel Hex Insert",,1,1,0,Banebots,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+5fb42eed-8bf9-4990-8eaf-c470c54f5aa1,"2.5""x1"" 40A Compliant Wheel Hex Insert",,9,9,0,AndyMark,,,,,,yes,0
+c7b81f55-d540-446e-95c3-557161b1e8d2,205T HTD5 Belt,,2,2,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+e618ff30-4f4a-453a-bed8-ec1b9efc3461,20T 20DP Gear,,5,5,0,,Main Storage Room,Gears,,,,,0
+6300eda4-eb72-4492-8875-221d4265b9a2,20T 20DT Gear,,5,5,0,,Main Storage Room,Gears,,,,,0
+b8a84a45-8f4d-451f-88bb-3c4ecab75496,210T HTD5 Belt,,5,5,0,McMaster-Carr,Main Storage Room,Belts more than 100T,,,,,0
+fa921db1-2cec-4b5a-8abe-4e6f07f68429,225T HTD5 Belt,,3,3,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+7ef19811-1c77-49c7-ac90-4cf5e24679ea,22T 20DP Gear,,1,1,0,VEX Robotics,Main Storage Room,Gears,,,,,0
+752177d3-9233-4d69-9d51-3f101c4bdac1,28T 20DP,,3,3,0,,Main Storage Room,Gears,,,,,0
+fedb2c40-cf60-4a31-bf67-605f4f70fdef,2in Left 3D Printed Mecanum Wheel,,2,2,0,,Main Storage Room,Omni / Mecanum Wheels,,,,yes,0
+871d821a-8ddd-4637-8c00-9ee512a705e5,2in Omni Wheel,,17,17,0,VEX Robotics,Main Storage Room,Omni / Mecanum Wheels,,,,yes,0
+148d8b31-86c6-4ffc-b834-3926ae62fbf4,2in Right 3D Printed Mecanum Wheel,,2,2,0,,Main Storage Room,Omni / Mecanum Wheels,,,,yes,0
+a591eb35-0032-40df-8a84-bf70f24e62b6,"3"" x 1.5"" Colson Wheel w/ Hex Insert",,2,2,0,,Main Storage Room,"3 & 4"" Colsons",,,,yes,0
+1a420155-45ec-4716-861e-504f683a0b54,"3"" x 7/8"" Colson Wheel w/ Hex Insert",,2,2,0,,Main Storage Room,"3 & 4"" Colsons",,,,yes,0
+befec9fc-433c-49bb-9c30-68db936fc226,"3""x1"" 35A Compliant Wheel Hex Insert",,15,9,0,AndyMark,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+698a3817-3110-4626-beba-c3f6c13bb8b7,"3""x7/8"" 30A Compliant Wheel Hex Insert",,2,2,0,Banebots,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+ab6274da-e462-45fa-999b-5e44bd4a0319,"3""x7/8"" 40A Compliant Wheel Hex Insert",,36,36,0,Banebots,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+c9d6a214-35bf-4920-9018-3f4b959f97e3,"3""x7/8"" 60A Compliant Wheel Hex Insert",,1,1,0,Banebots,Main Storage Room,"Compliant wheels 3"" or less",,,,yes,0
+5cdd38ea-b572-4510-b816-c12b03ad2a90,338T HTD 5 Belt,,1,1,0,Aliexpress,Main Storage Room,Belts more than 100T,,,,,0
+adf1abc0-aaf7-42bd-8c43-6a5ca6ebb553,35T 20DP Gear,,1,1,0,,Main Storage Room,Gears,,,,,0
+668bcf33-c10e-473c-b65c-fd19550114e6,35T HTD5 Belt,,2,2,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+b8aae887-6b8c-464f-9b86-59983e22b323,3in Left 3D Printed Mecanum Wheel,,1,1,0,,Main Storage Room,Omni / Mecanum Wheels,,,,yes,0
+8505176e-aad0-43b4-b125-8cdbaa99f876,3in Right 3D Printed Mecanum Wheel,,2,2,0,,Main Storage Room,Omni / Mecanum Wheels,,,,yes,0
+c2b33f8e-97c5-4d4d-9e3a-53d364299389,"4"" Solid Urethane Wheel 1/2"" Hex Bore - 45A Durometer",,3,3,0,ThriftyBot,Main Storage Room,"Compliant Wheels 4""",,,,,0
+a95c7293-b653-43fd-93c0-033fcc0cc06e,"4"" x 1.5"" Colson Wheel w/ Hex Insert",,7,7,0,,Main Storage Room,"3 & 4"" Colsons",,,,yes,0
+07778fd4-e50a-4b5d-ab10-d3fb326d0f0b,"4"" x 1.5"" Colson Wheel w/ No Insert",,7,7,0,,Main Storage Room,"3 & 4"" Colsons",,,,yes,0
+32ab26af-7877-4af5-a6a4-a8e05d20e770,"4"" x 7/8"" Colson Wheel w/ Hex Insert",,2,2,0,,Main Storage Room,"3 & 4"" Colsons",,,,yes,0
+c49acbc1-a738-4e21-a346-36a273c1f6b8,"4""x1"" 30A Compliant Wheel Hex Insert",,18,18,0,AndyMark,Main Storage Room,"Compliant Wheels 4""",,,,,0
+1be25225-6198-4369-8c2a-734a649f1377,"4""x7/8"" 30A Stealth Wheel Hex Insert",,6,6,0,Banebots,Main Storage Room,"Compliant Wheels 4""",,,,,0
+fdb42ae6-2244-4ff2-8775-0c67a4db0fd1,40T HTD 5 Belt,,2,2,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+b06505f6-aef7-4fbd-b596-97e80d072989,42T 20DP 1/2in Hex Gear,,1,1,0,REV Robotics,Main Storage Room,Gears,,,,,0
+d5f07eaa-7237-46ca-ab9b-be26b92400cb,45T 20DP Gear,,9,8,0,,Main Storage Room,Gears,,,,,0
+425c3f18-ab7d-4339-98d2-37ca5292f6d2,45T HTD 5 Belt,,4,4,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+19aad2bf-dc9e-42ab-a5fa-c4f4c2574bcf,48T 20DP Gear,,6,6,0,,Main Storage Room,Gears,,,,,0
+b185ae01-d68d-47f4-9148-396e0bf0d07e,48T HTD5 Belt,,3,3,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+92afe387-2189-4882-9fd9-3277d8db04d1,"5"" Colson Wheel",,7,7,0,,Main Storage Room,"5 & 6"" Colsons",,,,yes,0
+fd83bd12-be54-4d3f-967a-18b25bfd64b0,50T 20DP Gear,,11,10,0,,Main Storage Room,Gears,,,,,0
+c704efc3-edbc-4701-a23d-d96ae0ef666f,52T HTD5 Belt,,1,1,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+7bf5a999-b873-46c4-af98-7eb4d2c56a02,56T 20DP Gear,,6,6,0,AndyMark,Main Storage Room,Gears,,,,,0
+cd20c0c3-0ee8-4aec-8de6-f7bef82965e7,58T 20DP Gear,,1,1,0,,Main Storage Room,Gears,,,,,0
+9a6d3bc7-f7c8-46de-8e26-8d8bfa7179a2,59T HTD5 Belt,,2,2,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+00833ada-944f-4d63-bb55-2a944b3820da,"6"" Colson Wheel",,17,12,0,,Main Storage Room,"6"" Colsons",,,,yes,0
+55861e50-f14f-4c37-b852-0f45120af7e2,60T 20DP Gear,,11,11,0,,Main Storage Room,Gears,,,,,0
+b37ed4c7-72b5-464b-9011-4f176ca5befb,60T 32DP Gear,,1,1,0,AndyMark,Main Storage Room,Gears,,,,,0
+09979853-27c8-41d0-9dc0-e21f7cacb2dc,70T GT2 3mm Belt,,3,3,0,West Coast Products,Main Storage Room,Belts less than 100T,,,,,0
+6b9e5391-3654-43e7-92cb-651d9ddfbdb6,72T 20DP Gear,,1,1,0,VEX Robotics,Main Storage Room,Gears,,,,,0
+36919c3d-cf11-4c2e-9e77-adfc12f25301,75T HTD5 Belt,,5,5,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+0637ac3d-c513-4a37-b0e3-e9f064833b07,775 PRO,,2,0,0,VEX Robotics,Main Storage Room,Motors CIM,,,,,0
+438da986-aecb-4f01-a46f-76fdc42cf680,80T HTD5 Belt,,5,5,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+18d63e29-2a37-4fef-b7fe-efc86f444de5,84T 20DP Gear,,1,1,0,VEX Robotics,Main Storage Room,Gears,,,,,0
+ac4cc69e-1bd3-4b14-b477-ed971c905ece,84T 20DP Gear,,1,1,0,West Coast Products,Main Storage Room,Gears,,,,,0
+e884518a-faef-4d87-ab56-b19688f4613e,85T HTD5 Belt,,6,6,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+afeb74b7-e1b2-4534-bf2c-fbed83b46938,90T HTD5 Belt,,8,8,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+c501ef8b-b156-4b0b-9ed9-07830d9766ac,93T HTD5 Belt,,3,3,0,Aliexpress,Main Storage Room,Belts less than 100T,,,,,0
+e59a5342-71a6-4ace-9b86-023d110f382b,CIM motor,,6,0,0,AndyMark,Main Storage Room,Motors CIM,,,,,0
+6f2cb8ac-4173-42de-854e-bdf8c25a7738,Cold Shrink Silicone Sleeves (Blue),,2,2,0,Aliexpress,Main Storage Room,STARS,,,,yes,0
+89f419d9-233f-4d62-af87-72752fac0bda,Cold Shrink Silicone Sleeves (Yellow),,8,8,0,Aliexpress,Main Storage Room,STARS,,,,yes,0
+4a9b1190-93be-41f6-a004-a1726c53c7e7,Colson Inserts,,5,5,0,,Main Storage Room,"5 & 6"" Colsons",,,,yes,0
+4882de99-2bb4-43d2-a6e3-2e2bd8db2bba,GT2 20T Belt,,1,1,0,Aliexpress,Main Storage Room,Belts less than 100T,,,For 3D printing,,0
+e1d6e8b5-47e1-42bd-98e4-d5dac765db2c,Hex Star Compliant Wheel,,3,3,0,,Main Storage Room,STARS,,,,yes,0
+411f6581-8d31-46d3-9808-4e15ee23370d,Mini CIMS,,2,2,0,AndyMark,Main Storage Room,Motors CIM,,,,,0
+70f4eaa7-2598-4660-a7ee-8c83f90cd0ee,Redline Motor,,9,0,0,AndyMark,Main Storage Room,Motors CIM,,,,,0
+2d8b1bed-61d4-4ac4-b515-dadae3fa6695,Spark Motor Controller,,5,0,0,REV Robotics,Main Storage Room,Motors CIM,,,,,0
+e48d20fc-9425-4baa-97a0-cde867f105ee,Square Star Compliant Wheel,,10,10,0,,Main Storage Room,STARS,,,,yes,0

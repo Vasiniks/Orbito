@@ -14,7 +14,8 @@
       "**/*.txt",
       "**/*.pdf",
       "**/*.log",
-      "firebase-tools"
+      "firebase-tools",
+      "backups/**"
     ],
     "headers": [
       {
