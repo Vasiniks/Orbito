@@ -1653,15 +1653,15 @@ tr.ss-dragging { opacity: 0.4; }
   min-height: 46px;
   align-content: flex-start;
 }
-/* The group's own people sit directly under its header, above the nested boxes */
+/* The group's own people sit directly under its header, above the nested boxes.
+   Dashed so it reads as a drop area rather than stray text next to the boxes. */
 .grp-direct {
-  border-bottom: 1px solid var(--border);
-  margin: 0 -14px 12px;
-  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
 }
 .grp-body { padding: 12px 14px 14px; }
-/* No nested boxes? the group's own drop zone is the whole body */
-.grp-body > .grp-direct:last-child { margin-bottom: 0; border-bottom: none; }
 
 /* Sub-boxes are real boxes: their own border, radius, and inset background */
 .grp-subs { display: grid; gap: 10px; }
