@@ -625,6 +625,10 @@ tr.row-stock-low td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 .toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .toolbar-right { display: flex; align-items: center; gap: 8px; }
 
+/* Spreadsheet summary stats */
+.ss-stat-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ss-stat-n { font-size: 19px; font-weight: 700; line-height: 1.2; }
+
 /* Progress bar */
 .progress-bar {
   height: 5px; border-radius: 100px;
@@ -1388,6 +1392,15 @@ body.sidebar-collapsed .main-content { margin-left: 0; width: 100%; }
   .toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
   .toolbar-left, .toolbar-right { flex-wrap: wrap; }
   .toolbar-right { justify-content: flex-start; }
+  /* Let the search field share its row with the filter/sort icons beside it
+     instead of claiming 320px and pushing them onto a line of their own. */
+  .toolbar-left .search-box { max-width: none; flex: 1 1 180px; min-width: 150px; }
+  .toolbar-right > .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* Summary stats read as a tidy grid rather than a ragged wrap */
+  .ss-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 10px; width: 100%; }
+  .ss-stat-n { font-size: 17px; }
+  .ss-progress-wrap { max-width: none !important; width: 100%; }
 
   /* Larger touch targets (44px per HIG) */
   .btn-icon { width: 40px; height: 40px; font-size: 14px; }

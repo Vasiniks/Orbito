@@ -582,17 +582,17 @@ const SpreadsheetModule = {
 
     document.getElementById('ssStats').innerHTML = all.length === 0 ? '' : `
       <div class="card mb-3" style="padding:14px 18px">
-        <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
-          <div class="flex items-center gap-4" style="flex-wrap:wrap">
-            <div><span class="text-xs text-muted">Parts</span><div style="font-size:19px;font-weight:700">${activeCount}</div></div>
-            <div><span class="text-xs text-muted">Done</span><div style="font-size:19px;font-weight:700;color:var(--green)">${doneCount}</div></div>
-            <div><span class="text-xs text-muted">CNC</span><div style="font-size:19px;font-weight:700;color:var(--purple)">${fabCounts.cnc}</div></div>
-            <div><span class="text-xs text-muted">Manufacture</span><div style="font-size:19px;font-weight:700;color:var(--blue)">${fabCounts.manufacture}</div></div>
-            <div><span class="text-xs text-muted">3D Printed</span><div style="font-size:19px;font-weight:700;color:var(--rose)">${fabCounts.print}</div></div>
-            <div><span class="text-xs text-muted">COTS</span><div style="font-size:19px;font-weight:700;color:var(--cyan)">${fabCounts.cots}</div></div>
-            ${totalCost > 0 ? `<div><span class="text-xs text-muted">Budget</span><div style="font-size:19px;font-weight:700">${formatCurrency(totalCost)}</div></div>` : ''}
+        <div class="flex items-center justify-between ss-stat-wrap" style="flex-wrap:wrap;gap:12px">
+          <div class="ss-stat-row">
+            <div class="ss-stat"><span class="text-xs text-muted">Parts</span><div class="ss-stat-n">${activeCount}</div></div>
+            <div class="ss-stat"><span class="text-xs text-muted">Done</span><div class="ss-stat-n" style="color:var(--green)">${doneCount}</div></div>
+            <div class="ss-stat"><span class="text-xs text-muted">CNC</span><div class="ss-stat-n" style="color:var(--purple)">${fabCounts.cnc}</div></div>
+            <div class="ss-stat"><span class="text-xs text-muted">Manufacture</span><div class="ss-stat-n" style="color:var(--blue)">${fabCounts.manufacture}</div></div>
+            <div class="ss-stat"><span class="text-xs text-muted">3D Printed</span><div class="ss-stat-n" style="color:var(--rose)">${fabCounts.print}</div></div>
+            <div class="ss-stat"><span class="text-xs text-muted">COTS</span><div class="ss-stat-n" style="color:var(--cyan)">${fabCounts.cots}</div></div>
+            ${totalCost > 0 ? `<div class="ss-stat"><span class="text-xs text-muted">Budget</span><div class="ss-stat-n">${formatCurrency(totalCost)}</div></div>` : ''}
           </div>
-          <div style="min-width:160px;flex:1;max-width:300px">
+          <div class="ss-progress-wrap" style="min-width:160px;flex:1;max-width:300px">
             <div class="flex items-center justify-between text-xs text-muted" style="margin-bottom:4px"><span>Progress</span><span style="font-weight:700;color:var(--text-0)">${pct}%</span></div>
             <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
           </div>
