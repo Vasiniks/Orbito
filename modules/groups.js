@@ -133,22 +133,26 @@ const GroupsModule = {
           <button class="btn-icon btn-sm" onclick="GroupsModule.renameGroup('${g.id}')" title="Rename" aria-label="Rename ${escapeAttr(g.name)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
           <button class="btn-icon btn-sm" style="color:var(--red)" onclick="GroupsModule.deleteGroup('${g.id}')" title="Delete" aria-label="Delete ${escapeAttr(g.name)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
         </div>
-        <div class="grp-chips grp-direct" data-drop="${g.id}">
-          ${direct.map(p => this.chipHTML(p)).join('') || '<span class="text-xs text-muted">Drop people here</span>'}
+        <div class="grp-body">
+          <div class="grp-chips grp-direct" data-drop="${g.id}">
+            ${direct.map(p => this.chipHTML(p)).join('') || '<span class="text-xs text-muted">Drop people here</span>'}
+          </div>
+          ${subs.length ? `<div class="grp-subs">
+            ${subs.map(s => `
+              <div class="grp-sub" data-drop="${s.id}">
+                <div class="grp-sub-head">
+                  <span class="grp-sub-name">${escapeHTML(s.name)}</span>
+                  <span class="ss-group-count">${this.peopleIn(s.id).length}</span>
+                  <div style="flex:1"></div>
+                  <button class="btn-icon btn-sm" onclick="GroupsModule.renameGroup('${s.id}')" title="Rename box" aria-label="Rename ${escapeAttr(s.name)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                  <button class="btn-icon btn-sm" style="color:var(--red)" onclick="GroupsModule.deleteGroup('${s.id}')" title="Delete box" aria-label="Delete ${escapeAttr(s.name)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                </div>
+                <div class="grp-chips" data-drop="${s.id}">
+                  ${this.peopleIn(s.id).map(p => this.chipHTML(p)).join('') || '<span class="text-xs text-muted">Drop people here</span>'}
+                </div>
+              </div>`).join('')}
+          </div>` : ''}
         </div>
-        ${subs.map(s => `
-          <div class="grp-sub" data-drop="${s.id}">
-            <div class="grp-sub-head">
-              <span class="grp-sub-name">${escapeHTML(s.name)}</span>
-              <span class="ss-group-count">${this.peopleIn(s.id).length}</span>
-              <div style="flex:1"></div>
-              <button class="btn-icon btn-sm" onclick="GroupsModule.renameGroup('${s.id}')" title="Rename box" aria-label="Rename ${escapeAttr(s.name)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-              <button class="btn-icon btn-sm" style="color:var(--red)" onclick="GroupsModule.deleteGroup('${s.id}')" title="Delete box" aria-label="Delete ${escapeAttr(s.name)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
-            </div>
-            <div class="grp-chips" data-drop="${s.id}">
-              ${this.peopleIn(s.id).map(p => this.chipHTML(p)).join('') || '<span class="text-xs text-muted">Drop people here</span>'}
-            </div>
-          </div>`).join('')}
       </div>`;
   },
 
