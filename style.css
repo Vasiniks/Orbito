@@ -1410,6 +1410,15 @@ body.sidebar-collapsed .main-content { margin-left: 0; width: 100%; }
   .stock-chip { padding: 5px 11px; font-size: 12px; }
   .tab, .tab-btn { padding: 12px 16px; }
   td .btn-icon.btn-sm { width: 36px; height: 36px; }
+  /* Counting stock on a phone is the most common shop task — the +/- steppers
+     need to be thumb-sized, not 22px. */
+  .qty-btn { width: 34px; height: 34px; font-size: 15px; }
+  .qty-cell { gap: 7px; }
+  /* Editable chips are tap targets too */
+  .ss-chip, .chip-btn { min-height: 30px; padding: 6px 11px; font-size: 12px; }
+  .bom-status-btn { min-height: 30px; padding: 6px 11px; }
+  .ss-name { display: inline-block; padding: 5px 0; }
+  .cfg-swatch { width: 26px; height: 26px; }
 
   .page-content { padding: 16px; padding-bottom: 96px; }
   .global-search-wrap { padding-top: 12px; }
