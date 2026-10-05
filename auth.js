@@ -1,7 +1,21 @@
 // auth.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+// Firebase is loaded with guarded dynamic imports: if gstatic.com can't be
+// reached (offline, filtered school network) the module still defines
+// AuthModule, so the landing page's "Work offline" button keeps working.
+let initializeApp, getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut;
+let initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch;
+try {
+  const [fbApp, fbAuth, fbStore] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"),
+    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js")
+  ]);
+  ({ initializeApp } = fbApp);
+  ({ getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } = fbAuth);
+  ({ initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, writeBatch } = fbStore);
+} catch (e) {
+  console.warn("Firebase SDK could not be loaded; only offline mode is available.", e);
+}
 
 function parseEnvText(text) {
   const parsed = {};
@@ -158,7 +172,7 @@ let app, auth, db;
 let firebaseAvailable = false;
 
 try {
-  if (hasFirebaseConfig) {
+  if (hasFirebaseConfig && initializeApp) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     // Persistent local cache: reloads serve data instantly from IndexedDB
@@ -294,7 +308,7 @@ window.AuthModule = {
     if (!firebaseAvailable) {
       if (googleBtn) {
         googleBtn.disabled = true;
-        googleBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in Unavailable';
+        googleBtn.innerHTML = '<i class="fa-brands fa-google" aria-hidden="true"></i> Google sign-in unavailable';
         googleBtn.title = 'Firebase configuration missing. Use offline mode or configure Firebase.';
       }
       console.warn('Google Sign-in disabled: Firebase not configured');
@@ -412,6 +426,13 @@ window.AuthModule = {
 
   showOfflineUI() {
     document.getElementById('authOverlay').style.display = 'flex';
+    // The landing page already has a working "Work offline" button (Google
+    // sign-in was disabled in init), so keep it and just say why.
+    if (document.getElementById('mainOfflineBtn')) {
+      const foot = document.querySelector('#authOverlay .auth-foot');
+      if (foot) foot.textContent = "Google sign-in isn't available right now. Work offline to use data stored on this device.";
+      return;
+    }
     document.getElementById('authOverlay').innerHTML = `
       <div class="auth-card">
         <h2 class="auth-title">Sign-in isn't available</h2>
