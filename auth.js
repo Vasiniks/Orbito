@@ -413,11 +413,10 @@ window.AuthModule = {
   showOfflineUI() {
     document.getElementById('authOverlay').style.display = 'flex';
     document.getElementById('authOverlay').innerHTML = `
-      <div class="auth-card" style="border: 1px solid var(--border)">
-        <i class="fa-solid fa-cloud-slash fa-3x mb-4 text-amber"></i>
-        <h2>Offline / Local Mode</h2>
-        <p class="text-muted mb-4">Firebase connection is unconfigured or unavailable. You can proceed in local-only offline mode.</p>
-        <button id="workOfflineBtn" class="btn btn-primary" style="width:100%;justify-content:center"><i class="fa-solid fa-wifi-slash"></i> Work Offline</button>
+      <div class="auth-card">
+        <h2 class="auth-title">Sign-in isn't available</h2>
+        <p class="auth-sub">Firebase isn't configured or can't be reached. You can still use Orbito with data stored on this device.</p>
+        <button id="workOfflineBtn" class="btn btn-primary auth-cta" style="width:100%">Work offline</button>
       </div>
     `;
     const btn = document.getElementById('workOfflineBtn');
