@@ -24,7 +24,7 @@ const MODULES = {
 // Hide sidebar tabs the team has turned off in Configure
 window.applyTabVisibility = function () {
   const hidden = window.__hiddenTabs || [];
-  document.querySelectorAll('.sidebar-nav .nav-item[data-view]').forEach(el => {
+  document.querySelectorAll('.sidebar-nav .nav-item[data-view], .bn-item[data-view]').forEach(el => {
     el.style.display = hidden.includes(el.dataset.view) ? 'none' : '';
   });
 };
@@ -37,7 +37,7 @@ async function navigate(view) {
   currentView = view;
 
   // Update sidebar
-  document.querySelectorAll('.nav-item').forEach(el => {
+  document.querySelectorAll('.nav-item, .bn-item[data-view]').forEach(el => {
     const isActive = el.dataset.view === view;
     el.classList.toggle('active', isActive);
     if (isActive) el.setAttribute('aria-current', 'page');
@@ -73,6 +73,24 @@ function toast(message, type = 'info') {
   el.textContent = message;
   container.appendChild(el);
   setTimeout(() => { el.remove(); }, 3500);
+  // Tap to dismiss; on touch screens it can also be flicked away sideways.
+  el.addEventListener('click', () => el.remove());
+  let sx = null;
+  el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; el.style.transition = 'none'; }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (sx === null) return;
+    const dx = e.touches[0].clientX - sx;
+    el.style.transform = `translateX(${dx}px)`;
+    el.style.opacity = String(1 - Math.min(1, Math.abs(dx) / 160));
+  }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    sx = null;
+    el.style.transition = '';
+    if (Math.abs(dx) > 70) el.remove();
+    else { el.style.transform = ''; el.style.opacity = ''; }
+  });
 }
 
 // ── Modal ──
@@ -1160,7 +1178,7 @@ window.App = {
     });
 
     // Sidebar nav clicks
-    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    document.querySelectorAll('.nav-item[data-view], .bn-item[data-view]').forEach(el => {
       el.addEventListener('click', (e) => {
         e.preventDefault();
         navigate(el.dataset.view);
@@ -1195,32 +1213,96 @@ window.App = {
       sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
     }
     
-    // ── Touch gestures: edge-swipe right to open sidebar, swipe left to close ──
-    let touchStartX = 0, touchStartY = 0, touchStartT = 0;
+    document.getElementById('bottomNavMore')?.addEventListener('click', () => toggleSidebar(true));
+
+    // ── Touch gestures (phones) ──
+    const isPhone = () => window.innerWidth <= 768;
+    const NO_SWIPE = 'canvas, .kanban, .table-wrap, .tab-group, .tabs, .modal-overlay.open, .cmd-overlay.open, .tour-overlay, input, textarea, select';
+
+    // Sidebar follows the finger: drag in from the left edge to open it,
+    // drag it back to the left to close. Releases snap open or shut based on
+    // distance and flick speed.
+    let drawer = null;
+    const endDrawer = () => {
+      if (!drawer) return;
+      const d = drawer; drawer = null;
+      if (!d.active) return;
+      sidebar.style.transition = ''; sidebar.style.transform = '';
+      if (sidebarOverlay) { sidebarOverlay.style.transition = ''; sidebarOverlay.style.opacity = ''; }
+      const v = d.dx / Math.max(1, Date.now() - d.t0);          // px per ms
+      const open = d.open
+        ? !(d.dx < -d.w * 0.3 || v < -0.4)
+        : (d.dx > d.w * 0.3 || v > 0.4);
+      toggleSidebar(open);
+    };
     document.addEventListener('touchstart', e => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-      touchStartT = Date.now();
-    }, {passive: true});
-
-    document.addEventListener('touchend', e => {
-      if (window.innerWidth > 768) return;
-      // Ignore gestures inside canvases, horizontal scrollers, or open modals
-      if (e.target.closest('canvas, .kanban, .table-wrap, .modal-overlay.open, .cmd-overlay.open, .tour-overlay.open')) return;
-
-      const dx = e.changedTouches[0].screenX - touchStartX;
-      const dy = e.changedTouches[0].screenY - touchStartY;
-      const dt = Date.now() - touchStartT;
-      // Require a mostly-horizontal, reasonably quick swipe
-      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
-
-      if (dx < 0 && sidebar.classList.contains('open')) {
-        toggleSidebar(false);           // swipe left → close
-      } else if (dx > 0 && !sidebar.classList.contains('open') && touchStartX < 40) {
-        toggleSidebar(true);            // swipe right from left edge → open
+      if (!isPhone() || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const open = sidebar.classList.contains('open');
+      if (!open && (t.clientX > 28 || e.target.closest(NO_SWIPE))) return;
+      drawer = { x0: t.clientX, y0: t.clientY, dx: 0, t0: Date.now(), open, w: sidebar.offsetWidth || 280, active: false };
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      if (!drawer) return;
+      const t = e.touches[0];
+      const dx = t.clientX - drawer.x0, dy = t.clientY - drawer.y0;
+      if (!drawer.active) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) { drawer = null; return; }   // it's a scroll
+        drawer.active = true;
+        sidebar.style.transition = 'none';
+        if (sidebarOverlay) { sidebarOverlay.style.transition = 'none'; sidebarOverlay.classList.add('show'); }
       }
-    }, {passive: true});
-    
+      drawer.dx = dx;
+      const x = drawer.open ? Math.min(0, dx) : Math.min(0, dx - drawer.w);
+      sidebar.style.transform = `translateX(${x}px)`;
+      if (sidebarOverlay) sidebarOverlay.style.opacity = String(Math.max(0, 1 + x / drawer.w));
+    }, { passive: true });
+    document.addEventListener('touchend', endDrawer);
+    document.addEventListener('touchcancel', endDrawer);
+
+    // Dialogs are bottom sheets on phones: pull the header (or the body when
+    // it's scrolled to the top) down to dismiss.
+    const panel = document.getElementById('modalPanel');
+    const modalBody = document.getElementById('modalBody');
+    let sheet = null;
+    const endSheet = () => {
+      if (!sheet) return;
+      const s = sheet; sheet = null;
+      if (!s.active) return;
+      const v = s.dy / Math.max(1, Date.now() - s.t0);
+      panel.style.transition = 'transform 0.2s ease';
+      if (s.dy > panel.offsetHeight * 0.25 || v > 0.5) {
+        panel.style.transform = 'translateY(100%)';
+        setTimeout(() => { closeModal(); panel.style.transition = ''; panel.style.transform = ''; }, 190);
+      } else {
+        panel.style.transform = '';
+        setTimeout(() => { panel.style.transition = ''; }, 200);
+      }
+    };
+    panel.addEventListener('touchstart', e => {
+      if (!isPhone() || e.touches.length !== 1) return;
+      if (e.target.closest('input, textarea, select, canvas, [contenteditable="true"], .table-wrap')) return;
+      const fromHeader = e.target.closest('.modal-header');
+      const fromBodyTop = e.target.closest('.modal-body') && modalBody.scrollTop <= 0 && panel.scrollTop <= 0;
+      if (!fromHeader && !fromBodyTop) return;
+      sheet = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, dy: 0, t0: Date.now(), active: false };
+    }, { passive: true });
+    panel.addEventListener('touchmove', e => {
+      if (!sheet) return;
+      const dx = e.touches[0].clientX - sheet.x0, dy = e.touches[0].clientY - sheet.y0;
+      if (!sheet.active) {
+        if (dy < 8) { if (dy < -4 || Math.abs(dx) > 8) sheet = null; return; }
+        if (Math.abs(dx) > dy) { sheet = null; return; }
+        sheet.active = true;
+        panel.style.transition = 'none';
+      }
+      sheet.dy = Math.max(0, dy);
+      panel.style.transform = `translateY(${sheet.dy}px)`;
+    }, { passive: true });
+    panel.addEventListener('touchend', endSheet);
+    panel.addEventListener('touchcancel', endSheet);
+
     window.addEventListener('resize', () => {
       if (window.innerWidth > 768) {
         sidebar.classList.remove('open');
@@ -1288,6 +1370,10 @@ window.App = {
       }
       if (e.key === 'Escape' && cmdOverlay.classList.contains('open')) {
         cmdOverlay.classList.remove('open');
+      } else if (e.key === 'Escape' && !e.defaultPrevented
+                 && document.getElementById('modalOverlay').classList.contains('open')
+                 && !document.querySelector('#appLightbox, .popmenu')) {
+        closeModal();
       }
     });
 
